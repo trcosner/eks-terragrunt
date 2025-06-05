@@ -1,0 +1,75 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoscaler-test
+  namespace: default
+  labels:
+    app: autoscaler-test
+    purpose: scaling-test
+spec:
+  # High replica count to force scaling
+  replicas: 8
+  selector:
+    matchLabels:
+      app: autoscaler-test
+  template:
+    metadata:
+      labels:
+        app: autoscaler-test
+        purpose: scaling-test
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            # Resource requests that will require multiple nodes
+            cpu: 750m
+            memory: 768Mi
+          limits:
+            cpu: 1500m
+            memory: 1536Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      # Anti-affinity to spread pods across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - autoscaler-test
+              topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autoscaler-test-service
+  namespace: default
+spec:
+  selector:
+    app: autoscaler-test
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP
