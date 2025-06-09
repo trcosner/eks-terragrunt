@@ -1,0 +1,16 @@
+# Domain Configuration
+# Copy this file to domain.auto.tfvars and update with your actual domain
+# Add domain.auto.tfvars to your .gitignore
+
+# Your primary domain name (without any subdomains)
+# Example: "example.com", "mysite.dev", "company.cloud"
+domain_name = "example.com"
+
+# Whether to create the Route53 hosted zone
+# Set to true if you want Terraform to manage your DNS
+# Set to false if you're managing DNS elsewhere
+create_hosted_zone = true
+
+# Whether to create External DNS IAM policy for kubernetes-addons
+# Set to true to enable External DNS functionality
+create_external_dns_policy = true

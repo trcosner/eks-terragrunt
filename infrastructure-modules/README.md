@@ -1,45 +1,182 @@
 # Infrastructure Modules
 
-Reusable Terraform modules for EKS platform infrastructure components.
+Reusable Terraform modules for building production-ready EKS platform infrastructure with security best practices, multi-AZ deployment, and comprehensive testing support.
 
 ## Module Structure
 
 ```
 infrastructure-modules/
-├── vpc/                    # VPC and networking foundation
-├── eks/                    # EKS cluster and node groups  
-└── kubernetes-addons/      # Cluster management tools
+├── vpc/                    # VPC with multi-AZ networking foundation
+├── eks/                    # EKS cluster with managed node groups
+├── kubernetes-addons/      # Cluster autoscaler and AWS Load Balancer Controller
+├── acm-certificate/        # SSL/TLS certificate management
+└── route53/               # DNS hosted zone management
 ```
 
 ## Module Dependencies
 
-**Layered Architecture**:
-1. **VPC**: Foundation networking (no dependencies)
-2. **EKS**: Kubernetes cluster (requires VPC outputs)  
-3. **Add-ons**: Cluster tools (requires EKS outputs)
+**Layered Architecture with Clear Dependencies**:
+
+```mermaid
+graph TD
+    A[Bootstrap] --> B[VPC]
+    A --> C[Route53]
+    A --> D[ACM Certificate]
+    B --> E[EKS]
+    E --> F[Kubernetes Addons]
+    C --> D
+    D --> F
+    A --> F
+```
+
+1. **Bootstrap**: Foundational resources (S3, DynamoDB, Route53, IAM policies)
+2. **VPC**: Multi-AZ networking foundation (public/private subnets, NAT gateways)
+3. **Route53**: DNS hosted zone management (depends on Bootstrap)
+4. **ACM Certificate**: SSL certificates (depends on Route53 and Bootstrap)
+5. **EKS**: Kubernetes cluster with OIDC (depends on VPC)
+6. **Kubernetes Addons**: Cluster management tools (depends on EKS, Bootstrap, ACM)
 
 ## Design Principles
 
-- **Environment Agnostic**: Parameterized for multi-environment use
-- **Composable**: Single responsibility, clear interfaces
-- **Production Ready**: Security best practices, comprehensive validation
-- **AWS Best Practices**: Well-Architected Framework compliance
+### Infrastructure as Code Best Practices
+- **Environment Agnostic**: Parameterized for multi-environment deployment
+- **Composable**: Single responsibility modules with clear interfaces
+- **Immutable**: Infrastructure treated as disposable and reproducible
+- **Versioned**: All modules support semantic versioning
 
-## Usage
+### Production Readiness
+- **Security by Design**: IAM least privilege, private subnets, security groups
+- **High Availability**: Multi-AZ deployment across availability zones
+- **Scalability**: Auto-scaling groups and cluster autoscaler integration
+- **Monitoring**: CloudWatch integration and comprehensive logging
 
-### Terragrunt Integration (Recommended)
+### AWS Well-Architected Framework
+- **Operational Excellence**: Automated deployments and comprehensive testing
+- **Security**: Defense in depth, encryption at rest and in transit
+- **Reliability**: Multi-AZ deployment, auto-recovery mechanisms
+- **Performance Efficiency**: Optimized instance types and resource allocation
+- **Cost Optimization**: Right-sizing, auto-scaling, and cost monitoring
+
+## Module Documentation
+
+### [VPC Module](vpc/README.md)
+Multi-AZ VPC with public and private subnets, NAT gateways, and proper subnet tagging for EKS and load balancer integration.
+
+**Key Features:**
+- Multi-AZ deployment (2-3 availability zones)
+- Public subnets for load balancers and NAT gateways
+- Private subnets for EKS worker nodes
+- Proper subnet tagging for EKS and ALB discovery
+- VPC Flow Logs for network monitoring
+- Cost-optimized NAT gateway configuration
+
+### [EKS Module](eks/README.md)
+Production-ready EKS cluster with managed node groups, OIDC provider, and security best practices.
+
+**Key Features:**
+- EKS cluster with latest Kubernetes version
+- Managed node groups with auto-scaling
+- OIDC provider for service account integration
+- Proper IAM roles and policies
+- Private API endpoint configuration
+- CloudWatch logging integration
+
+### [Kubernetes Addons Module](kubernetes-addons/README.md)
+Essential Kubernetes cluster management tools including cluster autoscaler and AWS Load Balancer Controller.
+
+**Key Features:**
+- Cluster Autoscaler for node scaling
+- AWS Load Balancer Controller for ALB/NLB
+- Proper IAM roles using OIDC
+- Helm-based deployment
+- Multi-environment configuration support
+
+### [ACM Certificate Module](acm-certificate/README.md)
+SSL/TLS certificate management with DNS validation and automatic renewal.
+
+**Key Features:**
+- Wildcard certificates for subdomains
+- DNS validation via Route53
+- Automatic renewal
+- Multi-environment support
+- Certificate status validation
+
+### [Route53 Module](route53/README.md)
+DNS hosted zone management for domain configuration and SSL certificate validation.
+
+**Key Features:**
+- Hosted zone creation and management
+- Nameserver output for domain configuration
+- DNS record management
+- Multi-environment subdomain support
+
+## Usage Patterns
+
+### 1. Terragrunt Integration (Recommended)
 ```hcl
+# terragrunt.hcl
 terraform {
   source = "../../../infrastructure-modules/vpc"
 }
 
+include "root" {
+  path = find_in_parent_folders()
+}
+
+include "env" {
+  path           = find_in_parent_folders("env.hcl")
+  expose         = true
+  merge_strategy = "deep"
+}
+
 inputs = {
-  env = local.env
-  azs = ["us-east-1a", "us-east-1b"]
-  private_subnets = ["10.0.0.0/19", "10.0.32.0/19"]
-  public_subnets = ["10.0.64.0/19", "10.0.96.0/19"]
+  environment = include.env.locals.environment
+  region      = include.env.locals.region
+  azs         = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  
+  private_subnets = ["10.0.0.0/19", "10.0.32.0/19", "10.0.64.0/19"]
+  public_subnets  = ["10.0.96.0/19", "10.0.128.0/19", "10.0.160.0/19"]
+  
+  # Environment-specific configuration
+  enable_nat_gateway   = true
+  single_nat_gateway   = include.env.locals.environment != "prod"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+  
+  # Cost optimization
+  map_public_ip_on_launch = false
 }
 ```
+
+### 2. Direct Terraform Usage
+```hcl
+# main.tf
+module "vpc" {
+  source = "./infrastructure-modules/vpc"
+  
+  environment = "dev"
+  region      = "us-east-1"
+  azs         = ["us-east-1a", "us-east-1b"]
+  
+  private_subnets = ["10.0.0.0/19", "10.0.32.0/19"]
+  public_subnets  = ["10.0.64.0/19", "10.0.96.0/19"]
+}
+
+module "eks" {
+  source = "./infrastructure-modules/eks"
+  
+  environment = "dev"
+  region      = "us-east-1"
+  
+  vpc_id              = module.vpc.vpc_id
+  private_subnet_ids  = module.vpc.private_subnet_ids
+  
+  depends_on = [module.vpc]
+}
+```
+
+### 3. Module Testing
+```bash
 # Test individual modules
 cd infrastructure-modules/vpc
 terraform init

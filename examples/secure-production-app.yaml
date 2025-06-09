@@ -1,0 +1,197 @@
+# Example: Secure Production Application
+# This demonstrates how to deploy apps with the new security features
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-web-app
+  namespace: production
+  labels:
+    app: secure-web-app
+    version: v1.0.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: secure-web-app
+  template:
+    metadata:
+      labels:
+        app: secure-web-app
+        app.kubernetes.io/component: web
+        monitoring: enabled
+    spec:
+      serviceAccountName: secrets-manager-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: web-app
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 8080
+          name: http
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: PORT
+          value: "8080"
+        # Mount secrets from AWS Secrets Manager
+        volumeMounts:
+        - name: app-secrets
+          mountPath: "/mnt/secrets"
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: var-cache-nginx
+          mountPath: /var/cache/nginx
+        - name: var-run
+          mountPath: /var/run
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: app-secrets
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "app-secrets"
+      - name: tmp
+        emptyDir: {}
+      - name: var-cache-nginx
+        emptyDir: {}
+      - name: var-run
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: secure-web-app
+  namespace: production
+  labels:
+    app: secure-web-app
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
+  selector:
+    app: secure-web-app
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: secure-web-app
+  namespace: production
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-west-2:123456789012:certificate/your-cert-arn"
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    external-dns.alpha.kubernetes.io/hostname: secure-app.yourdomain.com
+spec:
+  rules:
+  - host: secure-app.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: secure-web-app
+            port:
+              number: 80
+
+---
+# Example: Database Connection App (demonstrates secrets usage)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database-app
+  namespace: production
+  labels:
+    app: database-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: database-app
+  template:
+    metadata:
+      labels:
+        app: database-app
+        monitoring: enabled
+    spec:
+      serviceAccountName: secrets-manager-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: alpine:3.18
+        command: ["/bin/sh"]
+        args: ["-c", "while true; do echo 'Database password:'; cat /mnt/secrets/database-password; echo 'API Key:'; cat /mnt/secrets/api-key; sleep 60; done"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        volumeMounts:
+        - name: app-secrets
+          mountPath: "/mnt/secrets"
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: app-secrets
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "app-secrets"
+      - name: tmp
+        emptyDir: {}

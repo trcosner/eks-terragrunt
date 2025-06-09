@@ -5,9 +5,11 @@ Terragrunt configuration for essential Kubernetes add-ons in the development env
 ## Configuration
 
 **Module Source**: `../../../infrastructure-modules/kubernetes-addons`
-**Primary Add-on**: Cluster Autoscaler with automatic node scaling
+**Add-ons**: Cluster Autoscaler and AWS Load Balancer Controller with automatic provisioning
 
-Depends on EKS cluster configuration for cluster name and OIDC provider.
+Dependencies:
+- EKS cluster configuration for cluster name and OIDC provider
+- VPC configuration for load balancer subnet discovery
 
 ## Deployment
 
@@ -20,8 +22,9 @@ terragrunt apply
 This will:
 1. Generate the Helm provider configuration
 2. Install the Cluster Autoscaler Helm chart
-3. Configure IAM roles and service accounts
-4. Set up monitoring and logging
+3. Install the AWS Load Balancer Controller Helm chart
+4. Configure IAM roles and service accounts for both add-ons
+5. Set up monitoring and logging
 
 ### Validate Configuration
 ```bash
@@ -35,11 +38,16 @@ terragrunt plan
 # Check Cluster Autoscaler deployment
 kubectl get deployment cluster-autoscaler -n kube-system
 
-# Check service account and IAM role binding
-kubectl describe sa cluster-autoscaler -n kube-system
+# Check AWS Load Balancer Controller deployment
+kubectl get deployment aws-load-balancer-controller -n kube-system
 
-# View autoscaler logs
+# Check service accounts and IAM role bindings
+kubectl describe sa cluster-autoscaler -n kube-system
+kubectl describe sa aws-load-balancer-controller -n kube-system
+
+# View logs
 kubectl logs -n kube-system deployment/cluster-autoscaler
+kubectl logs -n kube-system deployment/aws-load-balancer-controller
 ```
 
 ## Monitoring and Operations
@@ -57,6 +65,40 @@ kubectl get nodes
 
 # Monitor autoscaler decisions
 kubectl logs -n kube-system deployment/cluster-autoscaler --tail=50 -f
+```
+
+### AWS Load Balancer Controller Monitoring
+```bash
+# Check load balancer controller status
+kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+
+# View controller logs
+kubectl logs -n kube-system deployment/aws-load-balancer-controller --tail=50 -f
+
+# Check ingress resources
+kubectl get ingress --all-namespaces
+
+# List ALBs managed by controller
+aws elbv2 describe-load-balancers --query 'LoadBalancers[?contains(LoadBalancerName, `k8s`)]'
+```
+
+### External DNS Monitoring
+```bash
+# Check External DNS deployment
+kubectl get deployment external-dns -n kube-system
+
+# View External DNS logs for DNS record creation
+kubectl logs -n kube-system deployment/external-dns --tail=50 -f
+
+# Check Route53 records created by External DNS
+aws route53 list-resource-record-sets --hosted-zone-id Z1234567890ABC
+
+# Verify DNS resolution for services
+dig app.dev.example.com
+dig api.dev.example.com
+
+# Check TXT records used for ownership tracking
+dig TXT external-dns-app.dev.example.com
 ```
 
 ### Scaling Behavior
@@ -112,6 +154,8 @@ inputs = {
   # Additional add-ons (examples)
   enable_aws_load_balancer_controller = true
   enable_external_dns = true
+  external_dns_version = "1.14.3"
+  domain_name = "example.com"
   enable_cert_manager = true
   enable_metrics_server = true
 }

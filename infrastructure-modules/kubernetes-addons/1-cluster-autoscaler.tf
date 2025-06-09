@@ -5,7 +5,7 @@ data "aws_iam_openid_connect_provider" "this" {
 data "aws_iam_policy_document" "cluser_autoscaler" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
-    effect = "Allow"
+    effect  = "Allow"
 
     principals {
       type        = "Federated"
@@ -13,24 +13,24 @@ data "aws_iam_policy_document" "cluser_autoscaler" {
     }
 
     condition {
-        test     = "StringEquals"
-        variable = "${replace(data.aws_iam_openid_connect_provider.this.url, "https://", "")}:sub"
-        values   = ["system:serviceaccount:kube-system:cluster-autoscaler"]
+      test     = "StringEquals"
+      variable = "${replace(data.aws_iam_openid_connect_provider.this.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:cluster-autoscaler"]
     }
   }
 }
 
 resource "aws_iam_role" "cluster_autoscaler" {
-    count = var.enable_cluster_autoscaler ? 1 : 0
+  count              = var.enable_cluster_autoscaler ? 1 : 0
   name               = "${var.eks_name}-cluster-autoscaler"
   assume_role_policy = data.aws_iam_policy_document.cluser_autoscaler.json
 }
 
 resource "aws_iam_policy" "cluster_autoscaler" {
-  count = var.enable_cluster_autoscaler ? 1 : 0
+  count       = var.enable_cluster_autoscaler ? 1 : 0
   name        = "${var.eks_name}-cluster-autoscaler-policy"
   description = "Policy for EKS Cluster Autoscaler"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -44,30 +44,30 @@ resource "aws_iam_policy" "cluster_autoscaler" {
           "ec2:DescribeInstanceTypes",
         ]
         Resource = "*"
-        Effect = "Allow"
-      }, {
+        Effect   = "Allow"
+        }, {
         Action = [
-            "autoscaling:SetDesiredCapacity",
-            "autoscaling:TerminateInstanceInAutoScalingGroup"
+          "autoscaling:SetDesiredCapacity",
+          "autoscaling:TerminateInstanceInAutoScalingGroup"
         ]
-        Effect = "Allow"
+        Effect   = "Allow"
         Resource = "*"
     }]
   })
 }
 
 resource "aws_iam_role_policy_attachment" "cluster_autoscaler" {
-  count = var.enable_cluster_autoscaler ? 1 : 0
+  count      = var.enable_cluster_autoscaler ? 1 : 0
   policy_arn = aws_iam_policy.cluster_autoscaler[0].arn
   role       = aws_iam_role.cluster_autoscaler[0].name
 }
 
 resource "helm_release" "cluster_autoscaler" {
-  count = var.enable_cluster_autoscaler ? 1 : 0
-  name  = "cluster-autoscaler"
+  count      = var.enable_cluster_autoscaler ? 1 : 0
+  name       = "cluster-autoscaler"
   repository = "https://kubernetes.github.io/autoscaler"
-  chart = "cluster-autoscaler"
-  version = var.helm_chart_version
+  chart      = "cluster-autoscaler"
+  version    = var.helm_chart_version
 
   namespace = "kube-system"
   set {
@@ -77,7 +77,7 @@ resource "helm_release" "cluster_autoscaler" {
   set {
     name  = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = aws_iam_role.cluster_autoscaler[0].arn
-  } 
+  }
 
   set {
     name  = "autoDiscovery.clusterName"

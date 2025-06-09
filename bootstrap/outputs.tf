@@ -31,5 +31,43 @@ output "aws_region" {
 output "bucket_suffix" {
   description = "Random suffix used for bucket name"
   value       = random_string.bucket_suffix.result
-  sensitive   = false
+}
+
+# Route53 Outputs
+output "domain_name" {
+  description = "The primary domain name"
+  value       = var.domain_name
+}
+
+output "hosted_zone_id" {
+  description = "The hosted zone ID for the domain"
+  value       = var.create_hosted_zone ? aws_route53_zone.main[0].zone_id : null
+}
+
+output "hosted_zone_name_servers" {
+  description = "List of name servers for the hosted zone"
+  value       = var.create_hosted_zone ? aws_route53_zone.main[0].name_servers : null
+}
+
+output "hosted_zone_arn" {
+  description = "ARN of the hosted zone"
+  value       = var.create_hosted_zone ? aws_route53_zone.main[0].arn : null
+}
+
+# AWS Load Balancer Controller IAM Outputs
+output "aws_load_balancer_controller_policy_arn" {
+  description = "ARN of the AWS Load Balancer Controller IAM policy"
+  value       = var.create_load_balancer_controller_role ? aws_iam_policy.aws_load_balancer_controller[0].arn : null
+}
+
+# External DNS IAM Outputs
+output "external_dns_policy_arn" {
+  description = "ARN of the External DNS IAM policy"
+  value       = var.create_hosted_zone && var.create_external_dns_policy ? aws_iam_policy.external_dns[0].arn : null
+}
+
+# Secrets Manager IAM Outputs
+output "secrets_manager_policy_arn" {
+  description = "ARN of the Secrets Manager IAM policy"
+  value       = var.create_secrets_manager_policy ? aws_iam_policy.secrets_manager[0].arn : null
 }

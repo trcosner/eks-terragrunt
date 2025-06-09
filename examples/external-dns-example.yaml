@@ -1,0 +1,87 @@
+# External DNS Example Deployment
+# This example shows how to deploy an application that will automatically get DNS records created
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-world-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hello-world
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+      containers:
+      - name: hello-world
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-world-service
+  namespace: default
+  annotations:
+    # External DNS will create a DNS record for this service
+    external-dns.alpha.kubernetes.io/hostname: hello.dev.cosner.cloud
+    # Optional: Set TTL for the DNS record
+    external-dns.alpha.kubernetes.io/ttl: "300"
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app: hello-world
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # External DNS will automatically create DNS records for these hosts
+    external-dns.alpha.kubernetes.io/alias: "true"
+spec:
+  rules:
+    - host: api.dev.cosner.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-world-service
+                port:
+                  number: 80
+    - host: app.dev.cosner.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-world-service
+                port:
+                  number: 80

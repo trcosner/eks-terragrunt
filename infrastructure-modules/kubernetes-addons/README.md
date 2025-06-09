@@ -5,13 +5,15 @@ Installs and manages essential Kubernetes add-ons for EKS clusters using Helm ch
 ## Features
 
 - **Cluster Autoscaler**: Automatic node scaling based on pod requirements
+- **AWS Load Balancer Controller**: Provisions AWS ALB/NLB for Kubernetes Ingress resources
 - **IRSA Integration**: IAM roles for service accounts using OIDC provider  
 - **Helm Management**: Reliable add-on deployment and lifecycle management
 - **Extensible Design**: Easy addition of new add-ons and tools
 
 ## Module Structure
 
-- `1-cluster-autoscaler.tf`: IAM role, policy, and Helm chart
+- `1-cluster-autoscaler.tf`: IAM role, policy, and Helm chart for Cluster Autoscaler
+- `4-aws-load-balancer-controller.tf`: IAM role, policy, and Helm chart for AWS Load Balancer Controller
 - `2-variables.tf`: Input parameters
 - `3-outputs.tf`: Service account ARNs and status
 
@@ -21,6 +23,18 @@ Installs and manages essential Kubernetes add-ons for EKS clusters using Helm ch
 - **Purpose**: Automatically scales worker nodes based on pod scheduling
 - **Implementation**: Helm chart with IRSA-enabled service account
 - **Permissions**: EC2 Auto Scaling Groups and instance management
+
+### AWS Load Balancer Controller
+- **Purpose**: Provisions AWS Application Load Balancers and Network Load Balancers
+- **Implementation**: Helm chart with IRSA-enabled service account
+- **Permissions**: ELB, EC2, and IAM service-linked role management
+- **Features**: Multi-AZ load balancing, SSL termination, WAF integration
+
+### External DNS
+- **Purpose**: Automatically creates and manages Route53 DNS records for Kubernetes services
+- **Implementation**: Helm chart with IRSA-enabled service account
+- **Permissions**: Route53 hosted zone management and record creation
+- **Features**: Service and ingress annotation-based DNS record creation
 
 ## Dependencies
 
@@ -111,6 +125,12 @@ module "kubernetes_addons" {
 |--------|-------------|
 | `cluster_autoscaler_status` | Status of Cluster Autoscaler (enabled/disabled) |
 | `cluster_autoscaler_version` | Version of deployed Helm chart |
+| `aws_load_balancer_controller_status` | Status of AWS Load Balancer Controller (enabled/disabled) |
+| `aws_load_balancer_controller_version` | Version of deployed Helm chart |
+| `external_dns_status` | Status of External DNS (enabled/disabled) |
+| `external_dns_version` | Version of deployed Helm chart |
+| `external_dns_domain` | Domain name managed by External DNS |
+| `ssl_certificate_arn` | ARN of the SSL/TLS certificate for HTTPS ingress |
 
 ## Cluster Autoscaler Configuration
 
@@ -186,281 +206,101 @@ kubectl get sa cluster-autoscaler -n kube-system -o yaml
 # View autoscaler logs
 kubectl logs -n kube-system deployment/cluster-autoscaler --tail=50 -f
 
-# Check scaling events
-kubectl get events --sort-by=.metadata.creationTimestamp | grep -i scale
+# Check cluster nodes
+kubectl get nodes
 
-# Monitor node status
-kubectl get nodes -o wide
-
-# Check pod resource usage
-kubectl top nodes
-kubectl top pods --all-namespaces
+# View node autoscaling events
+kubectl get events --field-selector reason=TriggeredScaleUp
+kubectl get events --field-selector reason=ScaleDown
 ```
 
-### Scaling Behavior Analysis
-```bash
-# View autoscaler status
-kubectl get configmap cluster-autoscaler-status -n kube-system -o yaml
+## External DNS Configuration
 
-# Check node labels and taints
-kubectl describe nodes
+### Purpose and Features
 
-# View node group auto scaling activity
-aws autoscaling describe-scaling-activities --auto-scaling-group-name <asg-name>
-```
+External DNS automatically creates and manages Route53 DNS records for Kubernetes services and ingresses:
 
-## Troubleshooting
+- **Automatic DNS Management**: Creates A/CNAME records for services with LoadBalancer type
+- **Ingress Integration**: Manages DNS for ingress resources with hostnames
+- **Domain Filtering**: Restricts DNS management to specified domains
+- **TXT Record Ownership**: Uses TXT records to track ownership and prevent conflicts
 
-### Common Issues
+### Configuration
 
-#### Autoscaler Not Scaling Up
-**Symptoms**: Pods remain in Pending state despite resource availability
-**Solutions**:
-```bash
-# Check autoscaler logs for errors
-kubectl logs -n kube-system deployment/cluster-autoscaler
-
-# Verify IAM permissions
-aws sts get-caller-identity
-kubectl describe sa cluster-autoscaler -n kube-system
-
-# Check node group limits
-aws eks describe-nodegroup --cluster-name <cluster> --nodegroup-name <nodegroup>
-
-# Verify pod resource requests
-kubectl describe pod <pending-pod-name>
-```
-
-#### Autoscaler Not Scaling Down
-**Symptoms**: Underutilized nodes remain in cluster
-**Solutions**:
-```bash
-# Check for pods preventing scale-down
-kubectl get pods --all-namespaces -o wide
-
-# Look for local storage or DaemonSets
-kubectl describe node <node-name>
-
-# Check autoscaler configuration
-kubectl get deployment cluster-autoscaler -n kube-system -o yaml
-
-# Review scale-down logs
-kubectl logs -n kube-system deployment/cluster-autoscaler | grep -i scale-down
-```
-
-#### IRSA Authentication Issues
-**Symptoms**: Autoscaler cannot access AWS APIs
-**Solutions**:
-```bash
-# Verify OIDC provider
-aws iam list-open-id-connect-providers
-
-# Check IAM role trust policy
-aws iam get-role --role-name <cluster>-cluster-autoscaler
-
-# Validate service account annotations
-kubectl describe sa cluster-autoscaler -n kube-system
-
-# Test AWS API access from pod
-kubectl exec -n kube-system deployment/cluster-autoscaler -- aws sts get-caller-identity
-```
-
-### Debug Commands
-```bash
-# Describe autoscaler deployment
-kubectl describe deployment cluster-autoscaler -n kube-system
-
-# Check Helm release status
-helm list -n kube-system
-
-# View Helm chart values
-helm get values cluster-autoscaler -n kube-system
-
-# Check for resource conflicts
-kubectl get all -n kube-system | grep autoscaler
-```
-
-## Customization
-
-### Custom Autoscaler Configuration
 ```hcl
-# Add custom Helm values in the module
-locals {
-  autoscaler_values = {
-    "extraArgs.scale-down-delay-after-add"    = "5m"
-    "extraArgs.scale-down-unneeded-time"      = "10m"
-    "extraArgs.scale-down-utilization-threshold" = "0.5"
-    "extraArgs.max-node-provision-time"       = "15m"
-  }
-}
-
-resource "helm_release" "cluster_autoscaler" {
-  # ... existing configuration ...
+module "kubernetes_addons" {
+  source = "./infrastructure-modules/kubernetes-addons"
   
-  dynamic "set" {
-    for_each = local.autoscaler_values
-    content {
-      name  = set.key
-      value = set.value
-    }
-  }
+  # ... other configuration ...
+  
+  # External DNS
+  enable_external_dns = true
+  external_dns_version = "1.14.3"
+  external_dns_policy_arn = dependency.bootstrap.outputs.external_dns_policy_arn
+  domain_name = "example.com"
+  hosted_zone_id = "Z1234567890ABC"
 }
 ```
 
-### Resource Limits and Requests
-```hcl
-# Configure autoscaler resource allocation
-resource "helm_release" "cluster_autoscaler" {
-  # ... existing configuration ...
-  
-  set {
-    name  = "resources.requests.cpu"
-    value = "100m"
-  }
-  
-  set {
-    name  = "resources.requests.memory"
-    value = "300Mi"
-  }
-  
-  set {
-    name  = "resources.limits.cpu"
-    value = "100m"
-  }
-  
-  set {
-    name  = "resources.limits.memory"
-    value = "300Mi"
-  }
-}
-```
+### Service Annotations
 
-## Future Add-ons
+To create DNS records for LoadBalancer services:
 
-The module is designed to be extended with additional add-ons:
-
-### AWS Load Balancer Controller
-```hcl
-variable "enable_aws_load_balancer_controller" {
-  description = "Enable AWS Load Balancer Controller"
-  type        = bool
-  default     = false
-}
-
-resource "helm_release" "aws_load_balancer_controller" {
-  count = var.enable_aws_load_balancer_controller ? 1 : 0
-  # ... configuration ...
-}
-```
-
-### External DNS
-```hcl
-variable "enable_external_dns" {
-  description = "Enable External DNS"
-  type        = bool
-  default     = false
-}
-
-resource "helm_release" "external_dns" {
-  count = var.enable_external_dns ? 1 : 0
-  # ... configuration ...
-}
-```
-
-### Cert Manager
-```hcl
-variable "enable_cert_manager" {
-  description = "Enable Cert Manager"
-  type        = bool
-  default     = false
-}
-
-resource "helm_release" "cert_manager" {
-  count = var.enable_cert_manager ? 1 : 0
-  # ... configuration ...
-}
-```
-
-## Performance Tuning
-
-### Autoscaler Performance
 ```yaml
-# Fast scaling for development
-extraArgs:
-  scale-down-delay-after-add: 30s
-  scale-down-unneeded-time: 30s
-  scan-interval: 5s
-
-# Conservative scaling for production
-extraArgs:
-  scale-down-delay-after-add: 10m
-  scale-down-unneeded-time: 10m
-  scale-down-utilization-threshold: 0.5
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: app.dev.example.com
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: my-app
 ```
 
-### Resource Optimization
+### Ingress Integration
+
+External DNS automatically manages DNS for ingress resources:
+
 ```yaml
-# Ensure autoscaler has sufficient resources
-resources:
-  requests:
-    cpu: 100m
-    memory: 300Mi
-  limits:
-    cpu: 100m
-    memory: 300Mi
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  rules:
+    - host: api.dev.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app
+                port:
+                  number: 80
 ```
 
-## Security Considerations
+### Verify External DNS
 
-### IRSA Security
-- **Principle of Least Privilege**: IAM role has only required permissions
-- **No Long-lived Credentials**: Uses temporary tokens via OIDC
-- **Audit Trail**: All AWS API calls logged in CloudTrail
+```bash
+# Check External DNS deployment
+kubectl get deployment external-dns -n kube-system
 
-### Network Security
-- **Pod Security Context**: Runs with non-root user
-- **Security Groups**: Inherits cluster security group rules
-- **Network Policies**: Compatible with network policy implementations
+# View External DNS logs
+kubectl logs -n kube-system deployment/external-dns --tail=50 -f
 
-### Helm Security
-- **Chart Verification**: Use official Kubernetes charts from trusted repositories
-- **Value Validation**: Validate input values before deployment
-- **Update Management**: Regular updates for security patches
+# Check TXT records created by External DNS
+dig TXT external-dns-app.dev.example.com
 
-## Best Practices
-
-### 1. **Monitoring**
-- Enable comprehensive logging for all add-ons
-- Monitor resource usage and scaling events
-- Set up alerts for failed scaling operations
-
-### 2. **Configuration Management**
-- Use consistent naming conventions
-- Document all configuration changes
-- Test changes in development environment first
-
-### 3. **Security**
-- Regular security scans of deployed charts
-- Keep Helm charts updated
-- Monitor IRSA usage and permissions
-
-### 4. **Operations**
-- Automate add-on deployment in CI/CD pipelines
-- Plan for add-on upgrade procedures
-- Implement rollback procedures for failed deployments
-
-## Version Requirements
-
-- **Terraform**: >= 0.14
-- **AWS Provider**: ~> 5.0
-- **Helm Provider**: ~> 2.0
-- **Kubernetes**: 1.31+ (for compatibility)
-
-## Related Documentation
-
-- [Infrastructure Modules README](../README.md) - Module architecture overview
-- [EKS Module](../eks/README.md) - EKS cluster configuration
-- [Dev Kubernetes Add-ons](../../infrastructure/dev/kubernetes-addons/README.md) - Usage example
-- [Cluster Autoscaler Documentation](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) - Official documentation
-- [Helm Documentation](https://helm.sh/docs/) - Helm package manager
-- [IRSA Documentation](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) - AWS documentation
+# Verify A record creation
+dig app.dev.example.com
+```
