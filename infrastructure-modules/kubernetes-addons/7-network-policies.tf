@@ -276,5 +276,5 @@ resource "kubernetes_network_policy" "monitoring_policy" {
     }
   }
 
-  depends_on = [kubernetes_namespace.monitoring]
+  # Monitoring namespace is created in 6-pod-security.tf
 }

@@ -1,6 +1,6 @@
 # EKS Terragrunt Infrastructure
 
-A production-ready infrastructure-as-code setup for deploying Amazon EKS clusters using Terragrunt and Terraform. This repository provides a modular, DRY (Don't Repeat Yourself) approach to managing EKS infrastructure across multiple environments with comprehensive testing and cost optimization.
+A production-ready infrastructure-as-code setup for deploying Amazon EKS clusters using Terragrunt and Terraform. This repository provides a modular, DRY (Don't Repeat Yourself) approach to managing EKS infrastructure across multiple environments with comprehensive testing, cost optimization, and automated documentation generation.
 
 ## 🏗️ Architecture Overview
 
@@ -58,6 +58,13 @@ This repository follows a modular architecture pattern that separates reusable T
 - **Remote State Management**: S3 backend with DynamoDB locking for state consistency
 - **Cost-Optimized Deployment**: Single-node clusters with auto-scaling capabilities
 
+### Documentation & Development
+- **Automated Documentation**: terraform-docs integration with pre-commit hooks
+- **AI-Powered Documentation**: GitHub Copilot integration for intelligent module documentation
+- **Live Documentation**: Always up-to-date documentation that syncs with code changes
+- **Pre-commit Hooks**: Automatic code formatting, validation, and documentation updates
+- **Professional Testing Suite**: Multi-tier testing with comprehensive validation
+
 ### Security & Networking
 - **Security Best Practices**: Private subnets, IAM roles, and OIDC integration
 - **SSL/TLS**: Automated SSL certificate management with ACM
@@ -71,13 +78,6 @@ This repository follows a modular architecture pattern that separates reusable T
 - **Cost-Controlled Scaling**: Configurable scaling limits for cost management
 - **Resource Management**: Proper resource requests and limits for cost optimization
 
-### Testing & Validation
-- **Professional Testing Suite**: Multi-tier testing with cost optimization
-- **Zero-Cost Smoke Tests**: Basic functionality validation without AWS costs
-- **Cost-Optimized Integration Tests**: End-to-end validation with minimal costs
-- **Autoscaler Stress Testing**: Controlled scaling tests with cost monitoring
-- **Comprehensive Documentation**: Detailed testing guides and cost analysis
-
 ## 📋 Prerequisites
 
 Before getting started, ensure you have the following tools installed:
@@ -87,6 +87,21 @@ Before getting started, ensure you have the following tools installed:
 - [Terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/) (>= 0.50.0)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (for cluster management)
 - [Helm](https://helm.sh/docs/intro/install/) (for Kubernetes package management)
+
+### Optional Development Tools
+
+For enhanced development experience:
+
+- [terraform-docs](https://terraform-docs.io/) (automatic documentation generation)
+- [pre-commit](https://pre-commit.com/) (code quality and validation hooks)
+- [GitHub CLI with Copilot](https://cli.github.com/) (AI-powered documentation)
+- [tflint](https://github.com/terraform-linters/tflint) (Terraform linting)
+
+**Quick setup for development tools:**
+```bash
+# Run the setup script (installs pre-commit, terraform-docs, tflint)
+./scripts/setup-precommit.sh
+```
 
 ## 🛠️ Quick Start
 
@@ -216,20 +231,47 @@ dig api.dev.example.com
 
 ### Infrastructure Modules (`infrastructure-modules/`)
 
-Contains reusable Terraform modules:
+Contains reusable Terraform modules with auto-generated documentation:
 
 - **`vpc/`**: Creates VPC with public/private subnets, NAT gateways, and route tables
 - **`eks/`**: Provisions EKS cluster, managed node groups, and IAM roles
-- **`kubernetes-addons/`**: Installs essential Kubernetes add-ons like cluster autoscaler and AWS Load Balancer Controller
+- **`kubernetes-addons/`**: Installs essential Kubernetes add-ons (autoscaler, ALB controller, External DNS, monitoring)
+- **`acm-certificate/`**: Manages SSL/TLS certificates for domains
+- **`route53/`**: DNS hosted zone management and configuration
+
+Each module includes comprehensive terraform-docs generated documentation with:
+- Requirements and provider versions
+- All input variables with descriptions and types
+- All outputs with descriptions
+- Resource listings with links to AWS documentation
 
 ### Infrastructure Configurations (`infrastructure/`)
 
 Environment-specific Terragrunt configurations:
 
-- **`dev/`**: Development environment settings
-- **`staging/`**: Staging environment settings
-- **`_envcommon/`**: Shared provider configurations
+- **`dev/`**: Development environment settings (cost-optimized single node)
+- **`staging/`**: Staging environment settings (cost-optimized single node)
+- **`_envcommon/`**: Shared provider configurations and common resources
 - **`terragrunt.hcl`**: Root Terragrunt configuration with remote state setup
+
+### Bootstrap Infrastructure (`bootstrap/`)
+
+Initial setup for foundational AWS resources:
+
+- **S3 Backend**: Terraform state storage with versioning and encryption
+- **DynamoDB**: State locking table for concurrent access protection
+- **Route53**: DNS hosted zone for domain management
+- **IAM Policies**: Basic permissions and service-linked roles
+
+### Automation & Scripts (`scripts/`)
+
+Development and operational automation:
+
+- **`setup-precommit.sh`**: Installs and configures pre-commit hooks with terraform-docs
+- **`update-readmes.sh`**: Regenerates all module documentation with terraform-docs
+- **`ai-docs-generator.sh`**: AI-powered documentation using GitHub Copilot
+- **`validate-external-dns.sh`**: DNS validation and testing utilities
+- **`sanitize-sensitive-data.sh`**: Security utilities for data sanitization
 
 ### Key Configuration Files
 
@@ -258,15 +300,39 @@ The EKS module supports customizable:
 - **Node Groups**: Configure instance types, scaling, and capacity type
 - **Networking**: VPC and subnet configuration
 - **Add-ons**: Cluster autoscaler, monitoring, logging
+- **IRSA**: IAM Roles for Service Accounts integration
 
 ### VPC Configuration
 
 The VPC module creates:
 
-- **Public Subnets**: For load balancers and NAT gateways
-- **Private Subnets**: For EKS nodes and applications
+- **Public Subnets**: For load balancers and NAT gateways (10.0.1.0/24, 10.0.2.0/24)
+- **Private Subnets**: For EKS nodes and applications (10.0.11.0/24, 10.0.12.0/24)
 - **Internet Gateway**: For internet access
-- **NAT Gateways**: For private subnet internet access
+- **NAT Gateways**: For private subnet internet access (one per AZ)
+- **Route Tables**: Proper routing for public and private subnets
+
+### Kubernetes Add-ons Configuration
+
+The kubernetes-addons module includes:
+
+- **Cluster Autoscaler**: Automatic node scaling based on pod requirements
+- **AWS Load Balancer Controller**: ALB/NLB provisioning for ingress
+- **External DNS**: Automatic Route53 record management for services
+- **EBS CSI Driver**: Persistent volume support for stateful applications
+- **Pod Security Standards**: Kubernetes security policies
+- **Network Policies**: Network-level security controls
+- **Secrets Management**: AWS Secrets Manager integration
+- **Monitoring**: CloudWatch and Prometheus integration
+
+### Documentation Configuration
+
+The project uses automated documentation generation:
+
+- **terraform-docs**: Generates comprehensive module documentation
+- **Pre-commit hooks**: Automatically updates docs on every commit
+- **AI documentation**: GitHub Copilot integration for intelligent explanations
+- **Configuration**: `.terraform-docs.yml` defines documentation format and structure
 
 ## 🔐 Security Features
 
@@ -278,13 +344,24 @@ The VPC module creates:
 
 ## 🔍 Monitoring and Observability
 
-The infrastructure includes:
+The infrastructure includes comprehensive monitoring and observability:
 
-- **CloudWatch Logging**: EKS control plane logs
+- **CloudWatch Logging**: EKS control plane logs with retention policies
 - **Cluster Autoscaler**: Automatic node scaling based on pod requirements
 - **AWS Load Balancer Controller**: Efficient ingress management with ALB/NLB provisioning
 - **Cost Monitoring**: Resource usage tracking and scaling metrics
-- **Metrics Server**: Pod and node metrics collection
+- **Metrics Server**: Pod and node metrics collection for HPA
+- **External DNS**: Automatic DNS record management with monitoring
+- **EBS CSI Driver**: Persistent volume metrics and monitoring
+- **Pod Security**: Security policy monitoring and enforcement
+- **Network Policies**: Network traffic monitoring and security
+
+### Documentation and Development Experience
+
+- **Auto-generated Documentation**: Every module has comprehensive terraform-docs generated documentation
+- **Pre-commit Validation**: Automatic code formatting, linting, and documentation updates
+- **AI-Powered Insights**: GitHub Copilot integration for intelligent code explanations
+- **Testing Suite**: Comprehensive validation with cost optimization
 
 ## 🚀 Deployment Workflow
 
@@ -315,28 +392,6 @@ Terragrunt automatically handles dependencies between components:
 
 - EKS depends on VPC (uses VPC outputs for subnets)
 - Kubernetes add-ons depend on EKS (uses EKS outputs for cluster info)
-
-## 🧪 Testing
-
-After deployment, verify your cluster:
-
-```bash
-# Check cluster status
-kubectl get nodes
-
-# Deploy test application
-kubectl apply -f demo/deployment.yaml
-
-# Check pod status
-kubectl get pods
-
-# Test load balancer
-kubectl apply -f demo/ingress-example.yaml
-kubectl get ingress
-
-# Check services
-kubectl get services
-```
 
 ## 🧪 Testing & Validation
 
@@ -374,20 +429,118 @@ cd testing
 ./scripts/test-suite.sh dev
 ```
 
-For complete testing documentation, see [infrastructure-tests/docs/](infrastructure-tests/docs/).
+### Development Workflow Validation
+
+The project includes automated validation for development workflows:
+
+- **Pre-commit hooks**: Validate Terraform code, format, and generate docs on every commit
+- **terraform-docs**: Ensure documentation is always up-to-date with code changes
+- **AI-powered validation**: GitHub Copilot integration for code quality insights
+- **State consistency**: Scripts to validate Terragrunt state across environments
+
+For complete testing documentation, see module-specific README files with terraform-docs generated sections.
+
+## 📚 Documentation & Development Workflow
+
+This project features automated documentation generation and developer-friendly workflows:
+
+### Automated Documentation
+
+- **terraform-docs Integration**: Every module automatically generates comprehensive documentation
+- **Pre-commit Hooks**: Documentation updates automatically on every commit
+- **AI-Powered Insights**: GitHub Copilot integration for intelligent code explanations
+- **Live Documentation**: Documentation always stays in sync with code changes
+
+### Documentation Structure
+
+Each module includes:
+- **Requirements**: Provider versions and dependencies
+- **Providers**: Configured providers with versions
+- **Resources**: All AWS resources with links to documentation
+- **Inputs**: Variables with descriptions, types, defaults, and requirements
+- **Outputs**: All outputs with clear descriptions
+
+### Developer Setup
+
+Get started with the full development environment:
+
+```bash
+# Install all development tools
+./scripts/setup-precommit.sh
+
+# This installs:
+# - pre-commit (code quality hooks)
+# - terraform-docs (documentation generation)
+# - tflint (Terraform linting)
+# - GitHub Copilot CLI (AI assistance)
+```
+
+### Pre-commit Features
+
+When you commit code, pre-commit automatically:
+- **Formats Terraform code** with `terraform fmt`
+- **Validates Terraform syntax** with `terraform validate`
+- **Updates documentation** with `terraform-docs`
+- **Runs linting** with `tflint` for best practices
+- **Formats Terragrunt files** with `terragrunt hclfmt`
+- **Checks for security issues** and code quality
+
+### AI-Powered Documentation
+
+The project includes AI-enhanced documentation:
+- **Intelligent explanations** of complex Terraform configurations
+- **Architecture insights** powered by GitHub Copilot
+- **Usage examples** and best practices
+- **Security recommendations** and optimization tips
+
+Example of viewing module documentation:
+```bash
+# View EKS module documentation
+cat infrastructure-modules/eks/README.md
+
+# View VPC module documentation  
+cat infrastructure-modules/vpc/README.md
+
+# All modules include terraform-docs generated sections
+```
 
 ## 🔄 Updating Infrastructure
 
 To update infrastructure:
 
-1. Modify the relevant Terragrunt configuration
-2. Run `terragrunt plan` to review changes
-3. Run `terragrunt apply` to apply changes
+1. **Modify configurations**: Update relevant Terragrunt or module configuration
+2. **Review changes**: Run `terragrunt plan` to review changes
+3. **Apply updates**: Run `terragrunt apply` to apply changes
+4. **Documentation**: Pre-commit hooks automatically update documentation
+
+### Module Development Workflow
 
 For module updates:
 
-1. Update the module code in `infrastructure-modules/`
-2. Run `terragrunt apply` in the relevant environment directory
+1. **Edit module code** in `infrastructure-modules/`
+2. **Documentation auto-updates** via pre-commit hooks when you commit
+3. **Deploy updated modules** by running `terragrunt apply` in environment directories
+4. **Validate changes** using the testing suite
+
+### Documentation Workflow
+
+The project uses automated documentation:
+
+- **terraform-docs**: Automatically generates module documentation from code
+- **Pre-commit hooks**: Updates documentation on every commit
+- **AI insights**: GitHub Copilot provides intelligent explanations
+- **Manual regeneration**: Use `./scripts/update-readmes.sh` to regenerate all docs
+
+```bash
+# Regenerate all module documentation
+./scripts/update-readmes.sh
+
+# Set up pre-commit hooks for automatic updates
+./scripts/setup-precommit.sh
+
+# View current documentation
+# Each module's README.md contains comprehensive terraform-docs sections
+```
 
 ## 🗑️ Cleanup
 
@@ -435,3 +588,37 @@ terragrunt force-unlock [LOCK_ID]
 ```bash
 find . -name ".terragrunt-cache" -type d -exec rm -rf {} +
 ```
+
+**Pre-commit hooks not working**
+```bash
+# Reinstall pre-commit hooks
+./scripts/setup-precommit.sh
+
+# Or manually install
+pre-commit install
+```
+
+**terraform-docs not updating**
+```bash
+# Manually regenerate documentation
+./scripts/update-readmes.sh
+
+# Check terraform-docs installation
+terraform-docs --version
+```
+
+**Documentation out of sync**
+```bash
+# Force regenerate all module documentation
+./scripts/update-readmes.sh
+
+# Run pre-commit on all files
+pre-commit run --all-files
+```
+
+### Getting Help
+
+- **Module Documentation**: Each module in `infrastructure-modules/` has comprehensive README with terraform-docs generated sections
+- **Configuration Examples**: Check environment-specific configs in `infrastructure/dev/` and `infrastructure/staging/`
+- **Scripts**: Use automation scripts in `scripts/` directory for common tasks
+- **Testing**: Run the testing suite to validate your infrastructure setup

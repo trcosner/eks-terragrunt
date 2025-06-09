@@ -44,13 +44,14 @@ resource "kubernetes_namespace" "development" {
 }
 
 # Create monitoring namespace for observability tools
+# Uses privileged security to allow node-exporter and other monitoring components
 resource "kubernetes_namespace" "monitoring" {
   count = var.enable_pod_security_standards ? 1 : 0
 
   metadata {
     name = "monitoring"
     labels = {
-      "pod-security.kubernetes.io/enforce" = "baseline"
+      "pod-security.kubernetes.io/enforce" = "privileged"
       "pod-security.kubernetes.io/audit"   = "baseline"
       "pod-security.kubernetes.io/warn"    = "baseline"
     }
@@ -111,6 +112,55 @@ resource "kubernetes_manifest" "pod_security_policy_template" {
           }]
         }
       })
+    }
+  }
+}
+
+# Resource Quotas for Namespaces
+# Default namespace resource quota
+resource "kubernetes_resource_quota" "default" {
+  count = var.enable_resource_quotas ? 1 : 0
+
+  metadata {
+    name      = "default-quota"
+    namespace = "default"
+  }
+
+  spec {
+    hard = {
+      "requests.cpu"               = var.default_namespace_cpu_requests
+      "requests.memory"            = var.default_namespace_memory_requests
+      "limits.cpu"                 = var.default_namespace_cpu_limits
+      "limits.memory"              = var.default_namespace_memory_limits
+      "pods"                       = var.default_namespace_pod_limit
+      "persistentvolumeclaims"     = "5"
+      "services"                   = "5"
+      "secrets"                    = "10"
+      "configmaps"                 = "10"
+    }
+  }
+}
+
+# Kube-system namespace resource quota
+resource "kubernetes_resource_quota" "kube_system" {
+  count = var.enable_resource_quotas ? 1 : 0
+
+  metadata {
+    name      = "kube-system-quota"
+    namespace = "kube-system"
+  }
+
+  spec {
+    hard = {
+      "requests.cpu"               = var.kube_system_namespace_cpu_requests
+      "requests.memory"            = var.kube_system_namespace_memory_requests
+      "limits.cpu"                 = var.kube_system_namespace_cpu_limits
+      "limits.memory"              = var.kube_system_namespace_memory_limits
+      "pods"                       = var.kube_system_namespace_pod_limit
+      "persistentvolumeclaims"     = "10"
+      "services"                   = "10"
+      "secrets"                    = "20"
+      "configmaps"                 = "20"
     }
   }
 }

@@ -6,6 +6,12 @@ include "root" {
   path = find_in_parent_folders()
 }
 
+include "env" {
+    path = find_in_parent_folders("env.hcl")
+    expose = true
+    merge_strategy = "no_merge"
+}
+
 locals {
   env_vars = read_terragrunt_config(find_in_parent_folders("env.hcl"))
   env = local.env_vars.locals.env
@@ -29,14 +35,16 @@ inputs = {
   node_groups = {
     general = {
       capacity_type = "ON_DEMAND"
-      instance_types = ["t3a.xlarge"]
+      instance_types = include.env.locals.node_instance_types
       scaling_config = {
-        desired_size = 1
-        max_size = 5
-        min_size = 1
+        desired_size = include.env.locals.min_nodes
+        max_size = include.env.locals.max_nodes
+        min_size = include.env.locals.min_nodes
       }
     }
   }
+  
+  tags = include.env.locals.tags
 }
 
 

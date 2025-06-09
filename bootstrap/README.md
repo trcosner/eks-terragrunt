@@ -1,197 +1,72 @@
-# Bootstrap Infrastructure
+# Bootstrap Configuration
 
-## Overview
+Initial Terraform configuration for setting up foundational AWS resources and state management.
 
-The bootstrap layer provides the foundational infrastructure required before deploying any application environments. This is a **one-time setup** that creates shared resources used across all environments (dev, staging, production).
+<!-- BEGIN_TF_DOCS -->
+## Requirements
 
-### Architecture Components
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 5.0 |
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Bootstrap Infrastructure                      │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────┐ │
-│  │   S3 Bucket │  │ DynamoDB     │  │     Route53 Hosted      │ │
-│  │   (State)   │  │ (Locking)    │  │         Zone            │ │
-│  └─────────────┘  └──────────────┘  └─────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│            All Environment Infrastructure                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │     VPC     │  │     EKS     │  │    Kubernetes Addons    │ │
-│  │    (dev)    │  │   (dev)     │  │        (dev)            │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+## Providers
 
-### Key Resources
+| Name | Version |
+|------|---------|
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.99.1 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.7.2 |
 
-| Resource | Purpose | Lifecycle |
-|----------|---------|-----------|
-| **S3 Bucket** | Terraform state storage with versioning and encryption | Permanent |
-| **DynamoDB Table** | State locking to prevent concurrent operations | Permanent |
-| **Route53 Hosted Zone** | DNS management for your domain | Permanent |
-| **KMS Key** | Encryption for state files | Permanent |
+## Modules
 
-> ⚠️ **Critical**: These resources should **never be destroyed** unless completely decommissioning the project
+No modules.
 
-## Prerequisites
+## Resources
 
-### Required Tools
-- **AWS CLI** (>= 2.0) configured with administrative permissions
-- **Terraform** (>= 1.0) installed and in PATH
-- **jq** for JSON processing (optional but recommended)
+| Name | Type |
+|------|------|
+| [aws_dynamodb_table.terraform_state_lock](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
+| [aws_iam_policy.aws_load_balancer_controller](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
+| [aws_iam_policy.external_dns](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
+| [aws_iam_policy.secrets_manager](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
+| [aws_iam_role.terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role_policy_attachment.terraform_admin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
+| [aws_route53_zone.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone) | resource |
+| [aws_s3_bucket.terraform_state](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket) | resource |
+| [aws_s3_bucket_public_access_block.terraform_state](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_public_access_block) | resource |
+| [aws_s3_bucket_server_side_encryption_configuration.terraform_state](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_server_side_encryption_configuration) | resource |
+| [aws_s3_bucket_versioning.terraform_state](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_versioning) | resource |
+| [random_string.bucket_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
+| [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 
-### Required Permissions
-Your AWS user/role needs the following permissions:
-- `s3:*` - For state bucket management
-- `dynamodb:*` - For state locking table
-- `route53:*` - For hosted zone management
-- `kms:*` - For encryption key management
-- `iam:*` - For role and policy management
+## Inputs
 
-### Domain Requirements
-- **Registered domain** from any registrar (Namecheap, GoDaddy, Cloudflare, etc.)
-- **Access to DNS settings** at your registrar to update nameservers
-
-## Quick Start
-
-### 1. Domain Configuration
-
-Copy and configure your domain settings:
-```bash
-# Copy the example configuration
-cp domain.auto.tfvars.example domain.auto.tfvars
-
-# Edit with your domain details
-vim domain.auto.tfvars
-```
-
-Configure your domain in `domain.auto.tfvars`:
-```hcl
-# Replace with your actual domain
-domain_name = "example.com"  
-
-# Set to true for initial setup
-create_hosted_zone = true
-
-# Optional: Add tags for resource organization
-tags = {
-  Environment = "shared"
-  Project     = "eks-terragrunt"
-  Owner       = "devops-team"
-}
-```
-
-### 2. Deploy Bootstrap Infrastructure
-
-```bash
-# Initialize Terraform
-terraform init
-
-# Review planned changes
-terraform plan
-
-# Apply the configuration
-terraform apply
-```
-
-**Expected deployment time**: 2-3 minutes
-
-### 3. Configure Domain Nameservers
-
-After successful deployment, retrieve your AWS nameservers:
-```bash
-# Get nameservers for your registrar
-terraform output -json hosted_zone_name_servers | jq -r '.[]'
-```
-
-**Update your domain registrar**:
-1. Log into your domain registrar (Namecheap, GoDaddy, etc.)
-2. Navigate to DNS/Nameserver settings for your domain
-3. Change from "Registrar DNS" to "Custom DNS"
-4. Enter all 4 AWS nameservers from the output above
-
-### 4. Verify DNS Propagation
-
-DNS changes typically take 15 minutes to 48 hours to propagate globally:
-
-```bash
-# Check nameserver propagation
-dig NS your-domain.com
-
-# Alternative check
-nslookup -type=NS your-domain.com
-
-# Check from multiple locations
-curl -s "https://dns.google/resolve?name=your-domain.com&type=NS" | jq '.Answer[].data'
-```
-
-## State Management
-
-### Remote State Configuration
-
-After bootstrap deployment, all subsequent Terraform configurations use this remote state:
-
-```hcl
-# Example terragrunt.hcl configuration
-remote_state {
-  backend = "s3"
-  config = {
-    bucket         = "your-terraform-state-bucket"
-    key            = "path/to/terraform.tfstate"
-    region         = "us-west-2"
-    encrypt        = true
-    dynamodb_table = "your-terraform-locks"
-  }
-}
-```
-
-### State Bucket Features
-- **Versioning**: Enabled for state file history
-- **Encryption**: AES-256 server-side encryption
-- **Public Access**: Completely blocked
-- **Lifecycle**: Intelligent tiering for cost optimization
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region | `string` | `"us-east-1"` | no |
+| <a name="input_create_external_dns_policy"></a> [create\_external\_dns\_policy](#input\_create\_external\_dns\_policy) | Whether to create the External DNS IAM policy | `bool` | `true` | no |
+| <a name="input_create_hosted_zone"></a> [create\_hosted\_zone](#input\_create\_hosted\_zone) | Whether to create Route53 hosted zone for the domain | `bool` | `true` | no |
+| <a name="input_create_load_balancer_controller_role"></a> [create\_load\_balancer\_controller\_role](#input\_create\_load\_balancer\_controller\_role) | Whether to create the AWS Load Balancer Controller IAM role | `bool` | `true` | no |
+| <a name="input_create_secrets_manager_policy"></a> [create\_secrets\_manager\_policy](#input\_create\_secrets\_manager\_policy) | Whether to create the Secrets Manager IAM policy | `bool` | `true` | no |
+| <a name="input_domain_name"></a> [domain\_name](#input\_domain\_name) | Primary domain name for the project (e.g., example.com) | `string` | n/a | yes |
+| <a name="input_project_name"></a> [project\_name](#input\_project\_name) | Name of the project | `string` | `"eks-terragrunt"` | no |
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `s3_bucket_name` | Terraform state bucket name |
-| `dynamodb_table_name` | State locking table name |
-| `hosted_zone_id` | Route53 hosted zone ID |
-| `hosted_zone_name_servers` | Nameservers to configure at your registrar |
-| `domain_name` | Your configured domain name |
-
-## Domain Registrar CLI Tools
-
-### Namecheap
-No official CLI, but you can use:
-- **namecheap-cli** (unofficial): `npm install -g namecheap-cli`
-- **Web interface**: https://ap.www.namecheap.com/
-
-### Other Registrars
-- **GoDaddy**: Has official API and CLI tools
-- **Cloudflare**: `cloudflare-cli` for domains registered with Cloudflare
-- **Route53 Domains**: Can register domains directly via AWS CLI
-
-## Important Notes
-
-⚠️ **Never destroy this infrastructure** unless you're completely done with the project. The hosted zone nameservers will change if recreated, breaking your domain configuration.
-
-💡 **Separate from environment infrastructure** - This bootstrap layer is shared across all environments (dev, staging, prod).
-
-🔒 **domain.auto.tfvars is gitignored** - Each user needs to create their own with their domain name.
-
-## Troubleshooting
-
-**Issue**: `terraform apply` fails with "domain already exists"
-**Solution**: Another AWS account may have a hosted zone for this domain. Domains can only have one Route53 hosted zone per AWS account.
-
-**Issue**: SSL certificates fail to validate
-**Solution**: Ensure nameservers are properly configured and DNS has propagated. Check with `dig NS your-domain.com`.
-
-**Issue**: Can't find nameservers
-**Solution**: Run `terraform output hosted_zone_name_servers` in this directory.
+| Name | Description |
+|------|-------------|
+| <a name="output_aws_load_balancer_controller_policy_arn"></a> [aws\_load\_balancer\_controller\_policy\_arn](#output\_aws\_load\_balancer\_controller\_policy\_arn) | ARN of the AWS Load Balancer Controller IAM policy |
+| <a name="output_aws_region"></a> [aws\_region](#output\_aws\_region) | AWS region used |
+| <a name="output_bucket_suffix"></a> [bucket\_suffix](#output\_bucket\_suffix) | Random suffix used for bucket name |
+| <a name="output_domain_name"></a> [domain\_name](#output\_domain\_name) | The primary domain name |
+| <a name="output_dynamodb_table_arn"></a> [dynamodb\_table\_arn](#output\_dynamodb\_table\_arn) | ARN of the DynamoDB table for state locking |
+| <a name="output_dynamodb_table_name"></a> [dynamodb\_table\_name](#output\_dynamodb\_table\_name) | Name of the DynamoDB table for state locking |
+| <a name="output_external_dns_policy_arn"></a> [external\_dns\_policy\_arn](#output\_external\_dns\_policy\_arn) | ARN of the External DNS IAM policy |
+| <a name="output_hosted_zone_arn"></a> [hosted\_zone\_arn](#output\_hosted\_zone\_arn) | ARN of the hosted zone |
+| <a name="output_hosted_zone_id"></a> [hosted\_zone\_id](#output\_hosted\_zone\_id) | The hosted zone ID for the domain |
+| <a name="output_hosted_zone_name_servers"></a> [hosted\_zone\_name\_servers](#output\_hosted\_zone\_name\_servers) | List of name servers for the hosted zone |
+| <a name="output_s3_bucket_arn"></a> [s3\_bucket\_arn](#output\_s3\_bucket\_arn) | ARN of the S3 bucket for Terraform state |
+| <a name="output_s3_bucket_name"></a> [s3\_bucket\_name](#output\_s3\_bucket\_name) | Name of the S3 bucket for Terraform state |
+| <a name="output_secrets_manager_policy_arn"></a> [secrets\_manager\_policy\_arn](#output\_secrets\_manager\_policy\_arn) | ARN of the Secrets Manager IAM policy |
+| <a name="output_terraform_role_arn"></a> [terraform\_role\_arn](#output\_terraform\_role\_arn) | ARN of the Terraform IAM role |
+<!-- END_TF_DOCS -->

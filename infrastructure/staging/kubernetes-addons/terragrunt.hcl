@@ -91,4 +91,36 @@ inputs = {
   secrets_store_csi_driver_version = "1.4.4"
   aws_secrets_provider_version = "0.3.7"
   secrets_manager_policy_arn = dependency.bootstrap.outputs.secrets_manager_policy_arn
+  
+  # Monitoring Configuration
+  enable_monitoring = include.env.locals.enable_monitoring
+  prometheus_stack_version = "61.3.2"
+  prometheus_retention = "30d"  # Longer retention for staging
+  prometheus_storage_size = "50Gi"  # Larger storage for staging
+  
+  # Grafana Configuration with AWS Secrets Manager
+  grafana_use_secrets_manager = true
+  grafana_secret_name = "${dependency.eks.outputs.eks_name}-grafana-admin-password-${include.env.locals.env}"
+  grafana_service_type = "ClusterIP"  # Use ingress for external access
+  enable_grafana_ingress = true
+  grafana_hostname = "grafana-staging.${dependency.bootstrap.outputs.domain_name}"
+  enable_cloudwatch_exporter = true
+  aws_region = include.env.locals.region
+  tags = include.env.locals.tags
+  
+  # EBS CSI Driver Configuration
+  enable_ebs_csi_driver = true
+  
+  # Resource Quotas Configuration
+  enable_resource_quotas = true
+  default_namespace_cpu_requests = "2"
+  default_namespace_cpu_limits = "4"
+  default_namespace_memory_requests = "4Gi"
+  default_namespace_memory_limits = "8Gi"
+  default_namespace_pods = "20"
+  kube_system_namespace_cpu_requests = "4"
+  kube_system_namespace_cpu_limits = "8"
+  kube_system_namespace_memory_requests = "8Gi"
+  kube_system_namespace_memory_limits = "16Gi"
+  kube_system_namespace_pods = "40"
 }

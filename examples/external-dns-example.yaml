@@ -37,7 +37,7 @@ metadata:
   namespace: default
   annotations:
     # External DNS will create a DNS record for this service
-    external-dns.alpha.kubernetes.io/hostname: hello.dev.cosner.cloud
+    external-dns.alpha.kubernetes.io/hostname: hello.dev.example.com
     # Optional: Set TTL for the DNS record
     external-dns.alpha.kubernetes.io/ttl: "300"
 spec:
@@ -65,7 +65,7 @@ metadata:
     external-dns.alpha.kubernetes.io/alias: "true"
 spec:
   rules:
-    - host: api.dev.cosner.cloud
+    - host: api.dev.example.com
       http:
         paths:
           - path: /
@@ -75,7 +75,7 @@ spec:
                 name: hello-world-service
                 port:
                   number: 80
-    - host: app.dev.cosner.cloud
+    - host: app.dev.example.com
       http:
         paths:
           - path: /

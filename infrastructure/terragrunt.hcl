@@ -1,5 +1,5 @@
 locals {
-    # Using the bucket suffix from bootstrap outputs
+    # Using the bucket suffix from bootstrap outputs - update this when bootstrap changes
     bucket_suffix = "o1169f0t"
 }
 
@@ -22,5 +22,5 @@ remote_state {
 generate "provider" {
     path      = "provider.tf"
     if_exists = "overwrite_terragrunt"
-    contents  = file(find_in_parent_folders("_envcommon/aws_provider.tf"))
+    contents  = file("_envcommon/aws_provider.tf")
 }

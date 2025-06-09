@@ -1,37 +1,41 @@
-# Environment Common Configurations
+# Environment Common Configuration
 
-Shared provider configuration templates used across all environments and services.
+Shared Terragrunt configuration and provider settings used across all environments.
 
-## Directory Contents
+<!-- BEGIN_TF_DOCS -->
+## Requirements
 
-- `aws_provider.tf`: AWS provider configuration template
-- `helm_provider.tf`: Helm provider configuration template
+No requirements.
 
-## Purpose
+## Providers
 
-Provides DRY (Don't Repeat Yourself) provider configurations that are:
-- Generated automatically by Terragrunt in each service directory
-- Consistent across environments
-- Centrally managed for easy updates
+| Name | Version |
+|------|---------|
+| <a name="provider_aws"></a> [aws](#provider\_aws) | n/a |
 
-## Configuration Files
+## Modules
 
-### AWS Provider (`aws_provider.tf`)
-- **Region**: us-east-1
-- **Authentication**: AWS credentials file with "tyler" profile
-- **Usage**: Generated in all service directories
+No modules.
 
-### Helm Provider (`helm_provider.tf`)
-- **Authentication**: EKS cluster credentials via AWS CLI
-- **Usage**: Generated only in kubernetes-addons service
-- **Dependencies**: Requires `var.eks_name` from EKS dependency
+## Resources
 
-## Generation Syntax
+| Name | Type |
+|------|------|
+| [aws_eks_cluster.eks](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/eks_cluster) | data source |
+| [aws_eks_cluster.kubernetes](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/eks_cluster) | data source |
+| [aws_eks_cluster_auth.eks](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/eks_cluster_auth) | data source |
+| [aws_eks_cluster_auth.kubernetes](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/eks_cluster_auth) | data source |
 
-```hcl
-generate "provider" {
-    path      = "provider.tf"
-    if_exists = "overwrite_terragrunt"
-    contents  = file(find_in_parent_folders("_envcommon/aws_provider.tf"))
-}
-```
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_cost_center"></a> [cost\_center](#input\_cost\_center) | Cost center for billing | `string` | `"engineering"` | no |
+| <a name="input_env"></a> [env](#input\_env) | Environment name | `string` | n/a | yes |
+| <a name="input_owner"></a> [owner](#input\_owner) | Team or person responsible for the resources | `string` | `"devops-team"` | no |
+| <a name="input_project_name"></a> [project\_name](#input\_project\_name) | Name of the project | `string` | `"eks-terragrunt-demo"` | no |
+
+## Outputs
+
+No outputs.
+<!-- END_TF_DOCS -->

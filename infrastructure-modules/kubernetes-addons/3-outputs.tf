@@ -75,3 +75,54 @@ output "security_namespaces" {
     monitoring  = "baseline"
   } : {}
 }
+
+# Monitoring Outputs
+output "monitoring_enabled" {
+  description = "Whether monitoring stack is enabled"
+  value       = var.enable_monitoring
+}
+
+output "monitoring_status" {
+  description = "Status of the monitoring stack deployment"
+  value       = var.enable_monitoring ? "enabled" : "disabled"
+}
+
+output "prometheus_stack_version" {
+  description = "Version of the kube-prometheus-stack Helm chart deployed"
+  value       = var.enable_monitoring ? var.prometheus_stack_version : null
+}
+
+output "grafana_service_name" {
+  description = "Name of the Grafana Kubernetes service"
+  value       = var.enable_monitoring ? "kube-prometheus-stack-grafana" : null
+}
+
+output "grafana_hostname" {
+  description = "Hostname for Grafana access (if ingress enabled)"
+  value       = var.enable_monitoring && var.enable_grafana_ingress ? var.grafana_hostname : null
+}
+
+output "grafana_secret_name" {
+  description = "AWS Secrets Manager secret name for Grafana admin password"
+  value       = var.enable_monitoring && var.grafana_use_secrets_manager ? aws_secretsmanager_secret.grafana_admin_password[0].name : null
+}
+
+output "grafana_admin_user" {
+  description = "Grafana admin username"
+  value       = var.enable_monitoring ? "admin" : null
+}
+
+output "grafana_namespace" {
+  description = "Namespace where Grafana is deployed"
+  value       = var.enable_monitoring ? "monitoring" : null
+}
+
+output "prometheus_service_name" {
+  description = "Name of the Prometheus Kubernetes service"
+  value       = var.enable_monitoring ? "kube-prometheus-stack-prometheus" : null
+}
+
+output "alertmanager_service_name" {
+  description = "Name of the AlertManager Kubernetes service"
+  value       = var.enable_monitoring ? "kube-prometheus-stack-alertmanager" : null
+}

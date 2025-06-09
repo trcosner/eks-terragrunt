@@ -92,4 +92,42 @@ inputs = {
   secrets_store_csi_driver_version = "1.4.4"
   aws_secrets_provider_version = "0.3.7"
   secrets_manager_policy_arn = dependency.bootstrap.outputs.secrets_manager_policy_arn
+  
+  # Monitoring Configuration
+  enable_monitoring = include.env.locals.enable_monitoring
+  prometheus_stack_version = "61.3.2"
+  prometheus_retention = "15d"  # Shorter retention for dev
+  prometheus_storage_size = "20Gi"  # Smaller storage for dev
+  
+  # Grafana Configuration with AWS Secrets Manager
+  grafana_use_secrets_manager = true
+  grafana_secret_name = "${dependency.eks.outputs.eks_name}-grafana-admin-password-${include.env.locals.env}"
+  grafana_service_type = "ClusterIP"  # Use ingress for external access
+  enable_grafana_ingress = true
+  grafana_hostname = "grafana-dev.${dependency.bootstrap.outputs.domain_name}"
+  enable_cloudwatch_exporter = true
+  enable_aws_service_dashboards = true
+  enable_ec2_detailed_monitoring = true
+  enable_alb_monitoring = true
+  enable_nat_gateway_monitoring = true
+  enable_route53_monitoring = false  # Disabled for dev to reduce costs
+  cloudwatch_metrics_collection_interval = 300
+  aws_region = include.env.locals.region
+  tags = include.env.locals.tags
+  
+  # EBS CSI Driver Configuration
+  enable_ebs_csi_driver = true
+  
+  # Resource Quotas Configuration
+  enable_resource_quotas = true
+  default_namespace_cpu_requests = "1"
+  default_namespace_cpu_limits = "2"
+  default_namespace_memory_requests = "1Gi"
+  default_namespace_memory_limits = "2Gi"
+  default_namespace_pods = "10"
+  kube_system_namespace_cpu_requests = "2"
+  kube_system_namespace_cpu_limits = "4"
+  kube_system_namespace_memory_requests = "4Gi"
+  kube_system_namespace_memory_limits = "8Gi"
+  kube_system_namespace_pods = "20"
 }

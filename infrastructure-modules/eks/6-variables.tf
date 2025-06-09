@@ -7,6 +7,7 @@ variable "eks_name" {
   description = "Name of the EKS cluster"
   type        = string
 }
+
 variable "eks_version" {
   description = "Version of the EKS cluster"
   type        = string
@@ -26,7 +27,7 @@ variable "node_iam_policies" {
     3 = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
     4 = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
-} 
+}
 
 variable "node_groups" {
   description = "Map of EKS node groups with their configurations"
@@ -40,10 +41,16 @@ variable "node_groups" {
     })
   }))
   default = {}
-}   
+}
 
 variable "enable_irsa" {
   description = "Determines whether to create an Open ID Connect Provider for EKS to enable IRSA"
   type        = bool
   default     = true
+}
+
+variable "tags" {
+  description = "A map of tags to add to all resources"
+  type        = map(string)
+  default     = {}
 }

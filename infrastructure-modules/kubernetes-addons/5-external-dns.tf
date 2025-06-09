@@ -114,6 +114,27 @@ resource "helm_release" "external_dns" {
     value = "1m"
   }
 
+  # Resource specifications to comply with resource quotas
+  set {
+    name  = "resources.requests.cpu"
+    value = "50m"
+  }
+
+  set {
+    name  = "resources.requests.memory"
+    value = "64Mi"
+  }
+
+  set {
+    name  = "resources.limits.cpu"
+    value = "100m"
+  }
+
+  set {
+    name  = "resources.limits.memory"
+    value = "128Mi"
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.external_dns
   ]

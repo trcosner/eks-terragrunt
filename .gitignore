@@ -15,6 +15,13 @@ terraform.rc
 # Domain configuration (contains actual domain names)
 domain.auto.tfvars
 
+# Environment-specific sensitive configuration
+**/secrets.auto.tfvars
+**/monitoring.auto.tfvars
+**/.env
+**/.env.local
+**/grafana-admin-password.txt
+
 # Terragrunt
 .terragrunt-cache/
 .terragrunt-source-version
