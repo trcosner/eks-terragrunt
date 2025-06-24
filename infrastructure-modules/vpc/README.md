@@ -1,6 +1,16 @@
 # VPC Terraform Module
 
-Creates a VPC with public and private subnets across multiple availability zones, optimized for EKS clusters.
+Production-ready VPC infrastructure optimized for EKS clusters with comprehensive networking features:
+
+- **Multi-AZ Design**: Public and private subnets across multiple availability zones
+- **Internet Connectivity**: Internet Gateway for public subnet internet access
+- **NAT Gateway**: Dedicated NAT Gateway per AZ for private subnet outbound traffic
+- **Route Tables**: Properly configured routing for public and private subnets
+- **EKS Integration**: Automatic subnet tagging for EKS cluster discovery and load balancer placement
+- **Security**: Network ACLs and security group ready infrastructure
+- **Scalability**: Configurable CIDR blocks and subnet sizing for different environments
+
+This module creates enterprise-grade networking infrastructure with proper isolation and security boundaries.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements

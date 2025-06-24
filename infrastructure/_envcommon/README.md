@@ -1,6 +1,36 @@
 # Environment Common Configuration
 
-Shared Terragrunt configuration and provider settings used across all environments.
+Shared Terragrunt configuration and provider settings used across all environments to ensure consistency and reduce duplication.
+
+## Purpose
+
+This directory contains reusable provider configurations that are dynamically generated into each Terragrunt module, providing:
+
+- **Consistent Provider Versions**: Ensures all environments use the same provider versions
+- **DRY Principle**: Eliminates duplicate provider configurations across modules
+- **EKS Integration**: Automatic Kubernetes and Helm provider configuration using EKS cluster details
+- **Tag Standardization**: Common tag patterns applied across all resources
+
+## Files
+
+- **`aws_provider.tf`**: AWS provider configuration with common settings
+- **`kubernetes_provider.tf`**: Kubernetes provider that automatically connects to EKS clusters
+- **`helm_provider.tf`**: Helm provider for Kubernetes package management
+- **`tags.tf`**: Standard tagging patterns for resource organization
+
+## Usage
+
+These files are automatically included in Terragrunt modules using the `generate` block:
+
+```hcl
+generate "aws_provider" {
+  path      = "aws-provider.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = file(find_in_parent_folders("_envcommon/aws_provider.tf"))
+}
+```
+
+This ensures every module has consistent provider configuration without manual duplication.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements

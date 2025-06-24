@@ -1,6 +1,15 @@
 # ACM Certificate Module
 
-Creates and manages SSL/TLS certificates using AWS Certificate Manager with Route53 validation.
+Automated SSL/TLS certificate management with AWS Certificate Manager and Route53 integration:
+
+- **Certificate Provisioning**: Automatic SSL/TLS certificate creation for domains and subdomains
+- **DNS Validation**: Seamless Route53 DNS validation for certificate verification
+- **Wildcard Support**: Support for wildcard certificates (*.domain.com) for multiple subdomains
+- **Multi-Domain Support**: Subject Alternative Names (SAN) for multiple domain validation
+- **Automatic Renewal**: AWS-managed certificate renewal with no manual intervention
+- **Load Balancer Integration**: Ready for use with Application Load Balancers and ingress controllers
+
+This module ensures secure HTTPS communication for all applications with minimal operational overhead.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements

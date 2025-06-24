@@ -1,6 +1,17 @@
 # EKS Terraform Module
 
-Creates an Amazon EKS cluster with managed node groups, IAM roles, and OIDC provider integration.
+Production-ready Amazon EKS cluster with comprehensive security and operational features:
+
+- **EKS Cluster**: Fully managed Kubernetes control plane with encryption at rest
+- **Managed Node Groups**: Auto-scaling worker nodes with configurable instance types
+- **Security**: Private subnets, IAM roles with least privilege, and security group isolation
+- **IRSA Support**: IAM Roles for Service Accounts with OIDC provider integration
+- **Logging**: Complete control plane logging (API, audit, authenticator, controller manager, scheduler)
+- **Encryption**: EKS secrets encryption using AWS KMS
+- **Networking**: Private endpoint access with configurable public access
+- **Monitoring**: CloudWatch log groups and metrics integration
+
+This module creates a production-grade EKS cluster ready for enterprise workloads with security-first architecture.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements

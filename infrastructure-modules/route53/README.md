@@ -1,6 +1,15 @@
 # Route53 Module
 
-Creates and manages Route53 hosted zones and DNS records for domain management.
+DNS infrastructure management with AWS Route53 for scalable domain services:
+
+- **Hosted Zone Management**: Creates and manages Route53 hosted zones for domain delegation
+- **External DNS Integration**: Provides DNS authority for External DNS automatic record management
+- **Certificate Validation**: Enables DNS validation for ACM certificates
+- **Multi-Environment Support**: Supports subdomain delegation for dev/staging/production environments
+- **Name Server Export**: Provides name servers for domain registrar configuration
+- **Scalable Architecture**: Ready for geolocation routing and traffic policies
+
+This module establishes the DNS foundation for automated domain management across environments.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements

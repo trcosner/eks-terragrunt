@@ -1,6 +1,17 @@
 # Kubernetes Addons Module
 
-Installs and configures essential Kubernetes add-ons including cluster autoscaler, load balancer controller, and external DNS.
+Comprehensive Kubernetes add-ons module that deploys and configures essential platform services including:
+
+- **Cluster Management**: Cluster Autoscaler for dynamic node scaling
+- **Load Balancing**: AWS Load Balancer Controller for ALB/NLB management
+- **DNS Automation**: External DNS for automatic Route53 record management
+- **Security**: Pod Security Standards, Network Policies, and RBAC
+- **Secrets Management**: AWS Secrets Manager integration with CSI driver
+- **Monitoring**: Complete observability stack with Prometheus, Grafana, and AlertManager
+- **Storage**: EBS CSI driver for persistent volume support
+- **Resource Management**: Namespace quotas and resource limits
+
+This module transforms a basic EKS cluster into a production-ready platform with security, observability, and operational excellence built-in.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements

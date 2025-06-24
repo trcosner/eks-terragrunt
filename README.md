@@ -28,6 +28,96 @@ This isn't just a learning exercise—it's production-ready infrastructure showi
 
 This repository follows a modular architecture pattern that separates reusable Terraform modules from environment-specific configurations:
 
+### Infrastructure Architecture
+
+```mermaid
+graph TB
+    subgraph "AWS Account"
+        subgraph "Bootstrap (Shared)"
+            S3[S3 State Bucket]
+            DDB[DynamoDB Lock Table]
+            R53[Route53 Hosted Zone]
+            IAM[IAM Policies & Roles]
+        end
+
+        subgraph "Dev Environment"
+            subgraph "VPC-Dev"
+                PubSub1[Public Subnets<br/>10.0.64.0/19]
+                PrivSub1[Private Subnets<br/>10.0.0.0/19]
+                NAT1[NAT Gateway]
+                IGW1[Internet Gateway]
+            end
+
+            subgraph "EKS-Dev"
+                CP1[Control Plane]
+                NG1[Managed Node Groups<br/>t3a.large]
+                POD1[Application Pods]
+            end
+
+            subgraph "Monitoring-Dev"
+                PROM1[Prometheus]
+                GRAF1[Grafana]
+                AM1[AlertManager]
+            end
+
+            ACM1[ACM Certificate<br/>*.dev.domain.com]
+            ALB1[Application Load Balancer]
+        end
+
+        subgraph "Staging Environment"
+            subgraph "VPC-Staging"
+                PubSub2[Public Subnets<br/>10.0.64.0/19]
+                PrivSub2[Private Subnets<br/>10.0.0.0/19]
+                NAT2[NAT Gateway]
+                IGW2[Internet Gateway]
+            end
+
+            subgraph "EKS-Staging"
+                CP2[Control Plane]
+                NG2[Managed Node Groups<br/>t3a.xlarge]
+                POD2[Application Pods]
+            end
+
+            subgraph "Monitoring-Staging"
+                PROM2[Prometheus]
+                GRAF2[Grafana]
+                AM2[AlertManager]
+            end
+
+            ACM2[ACM Certificate<br/>*.staging.domain.com]
+            ALB2[Application Load Balancer]
+        end
+    end
+
+    subgraph "External"
+        DNS[External DNS Provider]
+        USER[Users]
+    end
+
+    %% Connections
+    USER --> ALB1
+    USER --> ALB2
+    ALB1 --> POD1
+    ALB2 --> POD2
+    R53 --> DNS
+    S3 --> DDB
+    NG1 --> PrivSub1
+    NG2 --> PrivSub2
+    POD1 --> PROM1
+    POD2 --> PROM2
+
+    %% Styling
+    classDef aws fill:#ff9900,stroke:#333,stroke-width:2px,color:#fff
+    classDef k8s fill:#326ce5,stroke:#333,stroke-width:2px,color:#fff
+    classDef monitoring fill:#e6522c,stroke:#333,stroke-width:2px,color:#fff
+
+    class S3,DDB,R53,IAM,ACM1,ACM2,ALB1,ALB2 aws
+    class CP1,CP2,NG1,NG2,POD1,POD2 k8s
+    class PROM1,PROM2,GRAF1,GRAF2,AM1,AM2 monitoring
+```
+
+### Directory Structure
+
 ```
 ├── bootstrap/                 # Initial setup (S3, DynamoDB, Route53, IAM policies)
 ├── infrastructure-modules/    # Reusable Terraform modules
@@ -39,7 +129,6 @@ This repository follows a modular architecture pattern that separates reusable T
 ├── infrastructure/           # Environment-specific Terragrunt configurations
 │   ├── dev/                 # Development environment
 │   ├── staging/             # Staging environment
-│   ├── cicd/                # CI/CD infrastructure (ArgoCD, Tekton) - Ready for deployment
 │   └── _envcommon/          # Shared provider configurations
 └── scripts/                 # Automation and utility scripts
 ```
@@ -78,7 +167,6 @@ This repository follows a modular architecture pattern that separates reusable T
 - **Remote State Management**: S3 backend with DynamoDB locking for state consistency
 - **Cost-Optimized Deployment**: Single-node clusters with auto-scaling capabilities
 - **Monitoring Stack**: Prometheus, Grafana, and CloudWatch integration (installed but requires configuration)
-- **GitOps Ready**: CI/CD infrastructure prepared for ArgoCD and Tekton deployment
 
 ### Documentation & Development
 - **Automated Documentation**: terraform-docs integration with pre-commit hooks
@@ -103,7 +191,142 @@ This repository follows a modular architecture pattern that separates reusable T
 - **Resource Management**: Resource quotas and limits configured for cost optimization
 - **Cost-Controlled Scaling**: Configurable scaling limits for cost management
 
-## 📋 Prerequisites
+## � Key Implementation Examples
+
+### Environment-Specific Configuration Pattern
+
+```hcl
+# infrastructure/dev/env.hcl
+locals {
+  env = "dev"
+  region = "us-east-1"
+
+  # Environment-specific sizing
+  node_instance_types = ["t3a.large"]  # Cost-optimized for dev
+  min_nodes = 1
+  max_nodes = 3
+
+  # Feature toggles
+  enable_monitoring = true
+
+  tags = {
+    Environment = "dev"
+    Project     = "eks-terragrunt-demo"
+    ManagedBy   = "terragrunt"
+    CostCenter  = "engineering"
+  }
+}
+```
+
+### Security-First Kubernetes Deployment
+
+```yaml
+# examples/secure-production-app.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-web-app
+  namespace: production
+spec:
+  template:
+    spec:
+      serviceAccountName: secrets-manager-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: web-app
+        image: nginx:1.25-alpine
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+```
+
+### Terragrunt Dependency Management
+
+```hcl
+# infrastructure/dev/kubernetes-addons/terragrunt.hcl
+dependency "vpc" {
+  config_path = "../vpc"
+  mock_outputs = {
+    vpc_id = "vpc-1234567890abcdef0"
+  }
+}
+
+dependency "eks" {
+  config_path = "../eks"
+  mock_outputs = {
+    eks_name = "demo"
+    openid_connect_provider_arn = "arn:aws:iam::123456789012:oidc-provider/example"
+  }
+}
+
+inputs = {
+  env = include.env.locals.env
+  eks_name = dependency.eks.outputs.eks_name
+  vpc_id = dependency.vpc.outputs.vpc_id
+
+  # Enable monitoring stack
+  enable_monitoring = include.env.locals.enable_monitoring
+  grafana_hostname = "grafana-${include.env.locals.env}.${dependency.bootstrap.outputs.domain_name}"
+
+  # Security features
+  enable_pod_security_standards = true
+  enable_network_policies = true
+  enable_secrets_management = true
+}
+```
+
+### Infrastructure Module Pattern
+
+```hcl
+# infrastructure-modules/eks/1-eks.tf
+resource "aws_eks_cluster" "main" {
+  name     = "${var.env}-${var.cluster_name}"
+  role_arn = aws_iam_role.cluster.arn
+  version  = var.kubernetes_version
+
+  vpc_config {
+    subnet_ids              = var.subnet_ids
+    endpoint_private_access = true
+    endpoint_public_access  = var.endpoint_public_access
+    public_access_cidrs    = var.public_access_cidrs
+  }
+
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks.arn
+    }
+    resources = ["secrets"]
+  }
+
+  enabled_cluster_log_types = [
+    "api", "audit", "authenticator", "controllerManager", "scheduler"
+  ]
+
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy,
+    aws_cloudwatch_log_group.cluster
+  ]
+
+  tags = merge(var.tags, {
+    Name = "${var.env}-${var.cluster_name}"
+  })
+}
+```
+
+## �📋 Prerequisites
 
 Before getting started, ensure you have the following tools installed:
 
@@ -373,6 +596,79 @@ The project uses automated documentation generation:
 
 The infrastructure includes a comprehensive monitoring stack that is deployed but requires configuration:
 
+### Monitoring Architecture
+
+```mermaid
+graph TB
+    subgraph "EKS Cluster"
+        subgraph "Monitoring Namespace"
+            PROM[Prometheus Server<br/>📊 Metrics Storage]
+            GRAF[Grafana<br/>📈 Visualization]
+            AM[AlertManager<br/>🚨 Alert Routing]
+            NE[Node Exporter<br/>📋 Node Metrics]
+        end
+
+        subgraph "Application Pods"
+            APP1[App Pod 1<br/>📱 /metrics]
+            APP2[App Pod 2<br/>📱 /metrics]
+            APP3[App Pod 3<br/>📱 /metrics]
+        end
+
+        subgraph "System Components"
+            KUBELET[Kubelet<br/>⚙️ Node Metrics]
+            CADVISOR[cAdvisor<br/>📦 Container Metrics]
+            APISER[API Server<br/>🎛️ Cluster Metrics]
+        end
+    end
+
+    subgraph "AWS Services"
+        CW[CloudWatch<br/>☁️ AWS Metrics]
+        SES[AWS SES<br/>📧 Email Alerts]
+        SLACK[Slack Webhook<br/>💬 Notifications]
+        SMS[AWS SNS<br/>📱 SMS Alerts]
+    end
+
+    subgraph "External Access"
+        USER[Users<br/>👥 Dashboard Access]
+        DEV[Developers<br/>🔧 Debug/Monitor]
+        OPS[Operations<br/>🛠️ Incident Response]
+    end
+
+    %% Data Flow
+    APP1 --> PROM
+    APP2 --> PROM
+    APP3 --> PROM
+    KUBELET --> PROM
+    CADVISOR --> PROM
+    APISER --> PROM
+    NE --> PROM
+    CW --> PROM
+
+    PROM --> GRAF
+    PROM --> AM
+
+    AM --> SES
+    AM --> SLACK
+    AM --> SMS
+
+    USER --> GRAF
+    DEV --> GRAF
+    OPS --> GRAF
+
+    %% Styling
+    classDef prometheus fill:#e6522c,stroke:#333,stroke-width:2px,color:#fff
+    classDef grafana fill:#f46800,stroke:#333,stroke-width:2px,color:#fff
+    classDef aws fill:#ff9900,stroke:#333,stroke-width:2px,color:#fff
+    classDef app fill:#326ce5,stroke:#333,stroke-width:2px,color:#fff
+    classDef users fill:#4caf50,stroke:#333,stroke-width:2px,color:#fff
+
+    class PROM,AM,NE prometheus
+    class GRAF grafana
+    class CW,SES,SMS aws
+    class APP1,APP2,APP3,KUBELET,CADVISOR,APISER app
+    class USER,DEV,OPS users
+```
+
 ### Deployed Components
 - **Prometheus**: Metrics collection and storage with 30-day retention (dev: 15-day)
 - **Grafana**: Visualization dashboard with AWS Secrets Manager integration
@@ -407,6 +703,42 @@ The monitoring stack is installed but needs configuration:
 - **Validation Scripts**: Infrastructure validation and monitoring utilities
 
 ## 🚀 Deployment Workflow
+
+### Deployment Dependencies Flow
+
+```mermaid
+graph TD
+    BOOT[1. Bootstrap<br/>🏗️ S3, DynamoDB, Route53<br/>IAM Policies]
+
+    subgraph "Environment Deployment"
+        VPC[2. VPC<br/>🌐 Networking Infrastructure<br/>Subnets, NAT, IGW]
+
+        CERT[3. ACM Certificate<br/>🔒 SSL/TLS Certificate<br/>DNS Validation]
+
+        EKS[4. EKS Cluster<br/>☸️ Control Plane<br/>Managed Node Groups]
+
+        ADDONS[5. Kubernetes Add-ons<br/>🔧 Monitoring, Security<br/>Load Balancer, DNS]
+    end
+
+    APPS[6. Applications<br/>📱 Workload Deployment<br/>Services, Ingress]
+
+    %% Dependencies
+    BOOT --> VPC
+    BOOT --> CERT
+    VPC --> EKS
+    EKS --> ADDONS
+    CERT --> ADDONS
+    ADDONS --> APPS
+
+    %% Styling
+    classDef bootstrap fill:#ff6b6b,stroke:#333,stroke-width:3px,color:#fff
+    classDef infrastructure fill:#4ecdc4,stroke:#333,stroke-width:2px,color:#fff
+    classDef applications fill:#45b7d1,stroke:#333,stroke-width:2px,color:#fff
+
+    class BOOT bootstrap
+    class VPC,CERT,EKS,ADDONS infrastructure
+    class APPS applications
+```
 
 ### Single Environment Deployment
 
@@ -531,21 +863,7 @@ kubectl edit secret -n monitoring alertmanager-kube-prometheus-stack-alertmanage
 # Configure routing rules for different alert severities
 ```
 
-### 3. Deploy CI/CD Pipeline (ArgoCD/Tekton)
-
-The CI/CD infrastructure is ready but not deployed:
-
-```bash
-# Deploy ArgoCD
-cd infrastructure/cicd/argocd
-terragrunt apply
-
-# Deploy Tekton (optional)
-cd infrastructure/cicd/tekton
-terragrunt apply
-```
-
-### 4. Configure Secrets Management
+### 3. Configure Secrets Management
 
 Enable the example SecretProviderClass to start using AWS Secrets Manager:
 
@@ -556,7 +874,7 @@ cd infrastructure/dev/kubernetes-addons
 terragrunt apply
 ```
 
-### 5. Deploy Production Applications
+### 4. Deploy Production Applications
 
 Use the provided secure application template:
 
@@ -568,7 +886,7 @@ kubectl apply -f examples/secure-production-app.yaml
 kubectl apply -f examples/external-dns-example.yaml
 ```
 
-### 6. Additional Configuration
+### 5. Additional Configuration
 
 - **CloudWatch Logs**: Configure log groups and retention policies
 - **Network Policies**: Customize network segmentation rules
@@ -641,7 +959,7 @@ terragrunt destroy --all --non-interactive
 
 ## 🆘 Troubleshooting
 
-### Common Issues
+### Infrastructure Issues
 
 **Terragrunt command not found**
 ```bash
@@ -651,17 +969,69 @@ brew install terragrunt
 **kubectl cannot connect to cluster**
 ```bash
 aws eks update-kubeconfig --region us-east-1 --name [CLUSTER_NAME]
+
+# Verify connection
+kubectl get nodes
+kubectl cluster-info
 ```
 
 **State lock conflicts**
 ```bash
 terragrunt force-unlock [LOCK_ID]
+
+# Check lock status
+aws dynamodb scan --table-name eks-terragrunt-terraform-locks
 ```
 
 **Clear Terragrunt caches**
 ```bash
 find . -name ".terragrunt-cache" -type d -exec rm -rf {} +
 ```
+
+### Kubernetes Debugging
+
+**Check cluster health**
+```bash
+# Node status
+kubectl get nodes -o wide
+
+# Pod issues
+kubectl get pods --all-namespaces | grep -v Running
+
+# Describe problematic pods
+kubectl describe pod [POD_NAME] -n [NAMESPACE]
+
+# Check logs
+kubectl logs [POD_NAME] -n [NAMESPACE] --previous
+```
+
+**Monitoring stack issues**
+```bash
+# Check monitoring namespace
+kubectl get all -n monitoring
+
+# Grafana admin password
+aws secretsmanager get-secret-value \
+  --secret-id "eks-terragrunt-grafana-admin-password-dev" \
+  --query SecretString --output text | jq -r '.password'
+
+# Port forward to Grafana
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+```
+
+**Load balancer issues**
+```bash
+# Check ALB controller
+kubectl get pods -n kube-system | grep aws-load-balancer-controller
+
+# Check ingress status
+kubectl get ingress --all-namespaces
+
+# Describe ingress for events
+kubectl describe ingress [INGRESS_NAME] -n [NAMESPACE]
+```
+
+### Development Tools
 
 **Pre-commit hooks not working**
 ```bash
@@ -670,6 +1040,9 @@ find . -name ".terragrunt-cache" -type d -exec rm -rf {} +
 
 # Or manually install
 pre-commit install
+
+# Run on all files
+pre-commit run --all-files
 ```
 
 **terraform-docs not updating**
