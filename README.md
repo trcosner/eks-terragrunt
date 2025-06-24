@@ -1,6 +1,28 @@
 # EKS Terragrunt Infrastructure
 
-A production-ready infrastructure-as-code setup for deploying Amazon EKS clusters using Terragrunt and Terraform. This repository provides a modular, DRY (Don't Repeat Yourself) approach to managing EKS infrastructure across multiple environments with comprehensive testing, cost optimization, and automated documentation generation.
+> **Why This Project Exists:** As a full-stack developer expanding into platform engineering, I built this production-grade infrastructure to demonstrate deep understanding of the complete technology stack—from React components to Kubernetes deployment.
+
+A production-ready infrastructure-as-code setup for deploying Amazon EKS clusters using Terragrunt and Terraform. This repository showcases platform engineering capabilities beyond typical application development, providing a modular, DRY (Don't Repeat Yourself) approach to managingFor detailed next steps, see [NextSteps.md](NextSteps.md) which contains a comprehensive production readiness roadmap.
+
+## 🔗 **Related Projects**
+
+This infrastructure platform is designed to deploy modern applications like:
+- **AI-Powered Applications**: Next.js frontends with LLM integration and event-driven backends
+- **Full-Stack SaaS Products**: React applications with AWS services integration
+- **Microservices Architectures**: Multi-service applications with proper networking and security
+
+
+## 🔄 Updating InfrastructureS infrastructure across multiple environments with comprehensive monitoring stack, security features, and automated documentation generation.
+
+## 🎯 **Project Context & Skills Demonstrated**
+
+This isn't just a learning exercise—it's production-ready infrastructure showing I understand the complete technology stack:
+
+- **Platform Engineering**: Multi-environment automation with security-first architecture
+- **Production Thinking**: Monitoring, observability, disaster recovery, and cost optimization
+- **Security Expertise**: Pod Security Standards, Network Policies, RBAC, and secrets management
+- **Scalability Design**: Auto-scaling, resource management, and performance optimization
+- **DevOps Excellence**: Infrastructure as Code, GitOps readiness, and operational best practices
 
 ## 🏗️ Architecture Overview
 
@@ -17,11 +39,9 @@ This repository follows a modular architecture pattern that separates reusable T
 ├── infrastructure/           # Environment-specific Terragrunt configurations
 │   ├── dev/                 # Development environment
 │   ├── staging/             # Staging environment
+│   ├── cicd/                # CI/CD infrastructure (ArgoCD, Tekton) - Ready for deployment
 │   └── _envcommon/          # Shared provider configurations
-└── infrastructure-tests/      # Professional testing suite with cost optimization
-    ├── scripts/             # Cost-optimized test scripts
-    ├── manifests/           # Kubernetes test manifests
-    └── docs/                # Testing documentation and cost analysis
+└── scripts/                 # Automation and utility scripts
 ```
 
 ### Current Deployment Architecture
@@ -36,37 +56,41 @@ This repository follows a modular architecture pattern that separates reusable T
 - **Network**: 2-AZ VPC (us-east-1a, us-east-1b) with public/private subnets
 - **EKS**: Single-node deployment for cost optimization (scales 1-5 nodes)
 - **Domain**: `staging.example.com` with wildcard certificate (`*.staging.example.com`)
-- **Cost**: Optimized for testing with controlled resource usage
+- **Cost**: Optimized for staging with controlled resource usage
 
 ### Future Multi-AZ Enhancement Plans
 
 **Planned Multi-AZ Deployment:**
 - **Geolocation-based Routing**: Route53 geolocation routing for optimal performance
 - **Regional Deployment**: Multiple regions with automated failover
-- **Subdomain Strategy**: 
+- **Subdomain Strategy**:
   - `app.dev.example.com`, `tools.dev.example.com` for development services
   - `api.staging.example.com`, `admin.staging.example.com` for staging services
-- **VPN Testing**: Test different regions via VPN to validate geolocation routing
+- **VPN Validation**: Test different regions via VPN to validate geolocation routing
 - **Load Balancing**: Geographic load distribution for global scale
 
 ## 🚀 Features
 
-### Infrastructure
+### Infrastructure & Platform Engineering
 - **Multi-Environment Support**: Separate configurations for dev, staging, and production
 - **Modular Design**: Reusable Terraform modules for all components
 - **DRY Configuration**: Terragrunt eliminates code duplication across environments
 - **Remote State Management**: S3 backend with DynamoDB locking for state consistency
 - **Cost-Optimized Deployment**: Single-node clusters with auto-scaling capabilities
+- **Monitoring Stack**: Prometheus, Grafana, and CloudWatch integration (installed but requires configuration)
+- **GitOps Ready**: CI/CD infrastructure prepared for ArgoCD and Tekton deployment
 
 ### Documentation & Development
 - **Automated Documentation**: terraform-docs integration with pre-commit hooks
 - **AI-Powered Documentation**: GitHub Copilot integration for intelligent module documentation
 - **Live Documentation**: Always up-to-date documentation that syncs with code changes
 - **Pre-commit Hooks**: Automatic code formatting, validation, and documentation updates
-- **Professional Testing Suite**: Multi-tier testing with comprehensive validation
 
 ### Security & Networking
 - **Security Best Practices**: Private subnets, IAM roles, and OIDC integration
+- **Pod Security Standards**: Kubernetes security policies enforced across namespaces
+- **Network Policies**: Network-level security controls and segmentation
+- **Secrets Management**: AWS Secrets Manager integration with CSI driver
 - **SSL/TLS**: Automated SSL certificate management with ACM
 - **DNS Management**: Route53 hosted zone with external domain support
 - **Network Isolation**: Proper subnet segmentation and security groups
@@ -75,8 +99,9 @@ This repository follows a modular architecture pattern that separates reusable T
 - **Auto-scaling**: Kubernetes cluster autoscaler for dynamic node scaling
 - **Load Balancing**: AWS Load Balancer Controller for multi-app/service load balancing
 - **DNS Automation**: External DNS for automatic Route53 record management
+- **Storage**: EBS CSI driver for persistent volume support
+- **Resource Management**: Resource quotas and limits configured for cost optimization
 - **Cost-Controlled Scaling**: Configurable scaling limits for cost management
-- **Resource Management**: Proper resource requests and limits for cost optimization
 
 ## 📋 Prerequisites
 
@@ -180,43 +205,40 @@ aws eks update-kubeconfig --region us-east-1 --name staging-demo
 
 ### 4. Deploy Sample Application
 
-Deploy a sample nginx application to test your cluster:
+Deploy a sample nginx application to validate your cluster:
 
 ```bash
-kubectl apply -f demo/deployment.yaml
+kubectl apply -f examples/external-dns-example.yaml
 kubectl get pods
 ```
 
-### 5. Verify and Test Infrastructure
+### 5. Verify Infrastructure
 
-After deploying your infrastructure, validate it using our comprehensive testing suite:
+After deploying your infrastructure, you can validate it by:
 
 ```bash
-# Quick health check (30 seconds, $0.00)
-cd testing
-./scripts/smoke-test.sh dev
+# Check cluster status
+kubectl get nodes
+kubectl get pods --all-namespaces
 
-# Cost-optimized integration test (10 minutes, ~$0.05)
-./scripts/integration-test.sh dev
+# Verify monitoring stack (Prometheus & Grafana are installed)
+kubectl get pods -n monitoring
 
-# Full end-to-end validation (20 minutes, ~$0.15-0.25)
-./scripts/test-suite.sh dev
+# Check security features
+kubectl get networkpolicies --all-namespaces
+kubectl get secretproviderclass --all-namespaces
+
+# Verify DNS and load balancer setup
+kubectl get services --all-namespaces
+kubectl get ingress --all-namespaces
 ```
-
-For detailed testing information, see [infrastructure-tests/README.md](infrastructure-tests/README.md).
 
 ### 6. Deploy Sample Applications
 
-Deploy sample applications to test your cluster:
+Deploy sample applications to validate your cluster:
 
 ```bash
 # Basic application deployment
-kubectl apply -f infrastructure-tests/manifests/general/deployment.yaml
-
-# Test autoscaler with resource-intensive workload
-kubectl apply -f infrastructure-tests/manifests/load/high-cpu-deployment.yaml
-
-# Test External DNS with sample application
 kubectl apply -f examples/external-dns-example.yaml
 
 # Validate External DNS is working
@@ -320,10 +342,11 @@ The kubernetes-addons module includes:
 - **AWS Load Balancer Controller**: ALB/NLB provisioning for ingress
 - **External DNS**: Automatic Route53 record management for services
 - **EBS CSI Driver**: Persistent volume support for stateful applications
-- **Pod Security Standards**: Kubernetes security policies
-- **Network Policies**: Network-level security controls
-- **Secrets Management**: AWS Secrets Manager integration
-- **Monitoring**: CloudWatch and Prometheus integration
+- **Pod Security Standards**: Kubernetes security policies enforced across namespaces
+- **Network Policies**: Network-level security controls and segmentation
+- **Secrets Management**: AWS Secrets Manager integration with CSI driver
+- **Monitoring Stack**: Prometheus, Grafana, and CloudWatch integration (deployed but requires configuration)
+- **Resource Quotas**: Namespace-level resource limits and quotas
 
 ### Documentation Configuration
 
@@ -336,32 +359,52 @@ The project uses automated documentation generation:
 
 ## 🔐 Security Features
 
-- **Private Node Groups**: EKS nodes run in private subnets
-- **IAM Roles**: Least-privilege access with service-linked roles
-- **OIDC Integration**: Kubernetes service accounts with AWS IAM
+- **Private Node Groups**: EKS nodes run in private subnets with no direct internet access
+- **IAM Roles**: Least-privilege access with service-linked roles and IRSA
+- **OIDC Integration**: Kubernetes service accounts with AWS IAM integration
+- **Pod Security Standards**: Enforced security policies across all namespaces
+- **Network Policies**: Network-level security controls and micro-segmentation
+- **Secrets Management**: AWS Secrets Manager integration via CSI driver
+- **Resource Quotas**: Namespace-level resource limits to prevent resource exhaustion
 - **Network Security**: Security groups with minimal required access
 - **Encryption**: EKS secrets encryption and EBS volume encryption
 
 ## 🔍 Monitoring and Observability
 
-The infrastructure includes comprehensive monitoring and observability:
+The infrastructure includes a comprehensive monitoring stack that is deployed but requires configuration:
 
-- **CloudWatch Logging**: EKS control plane logs with retention policies
-- **Cluster Autoscaler**: Automatic node scaling based on pod requirements
+### Deployed Components
+- **Prometheus**: Metrics collection and storage with 30-day retention (dev: 15-day)
+- **Grafana**: Visualization dashboard with AWS Secrets Manager integration
+- **AlertManager**: Alert routing and management (requires webhook configuration)
+- **CloudWatch Integration**: AWS service metrics and logging
+- **Node Exporter**: Node-level metrics collection
+- **Metrics Server**: Pod and node metrics collection for HPA
+
+### Monitoring Features
+- **ClusterAutoscaler**: Automatic node scaling based on pod requirements
 - **AWS Load Balancer Controller**: Efficient ingress management with ALB/NLB provisioning
 - **Cost Monitoring**: Resource usage tracking and scaling metrics
-- **Metrics Server**: Pod and node metrics collection for HPA
 - **External DNS**: Automatic DNS record management with monitoring
 - **EBS CSI Driver**: Persistent volume metrics and monitoring
 - **Pod Security**: Security policy monitoring and enforcement
 - **Network Policies**: Network traffic monitoring and security
+- **Resource Quotas**: Namespace-level resource monitoring and limits
+
+### Next Steps Required
+The monitoring stack is installed but needs configuration:
+- Configure Grafana dashboards and data sources
+- Set up AlertManager notification webhooks
+- Configure CloudWatch log groups and retention
+- Set up application-specific monitoring
 
 ### Documentation and Development Experience
 
 - **Auto-generated Documentation**: Every module has comprehensive terraform-docs generated documentation
 - **Pre-commit Validation**: Automatic code formatting, linting, and documentation updates
 - **AI-Powered Insights**: GitHub Copilot integration for intelligent code explanations
-- **Testing Suite**: Comprehensive validation with cost optimization
+- **Comprehensive Examples**: Secure production application templates and configurations
+- **Validation Scripts**: Infrastructure validation and monitoring utilities
 
 ## 🚀 Deployment Workflow
 
@@ -393,53 +436,6 @@ Terragrunt automatically handles dependencies between components:
 - EKS depends on VPC (uses VPC outputs for subnets)
 - Kubernetes add-ons depend on EKS (uses EKS outputs for cluster info)
 
-## 🧪 Testing & Validation
-
-This repository includes a professional testing suite with cost optimization:
-
-### Testing Tiers
-
-| Test Type | Duration | Cost | Purpose |
-|-----------|----------|------|---------|
-| **Smoke Test** | 30s | $0.00 | Basic health check, zero AWS costs |
-| **Integration Test** | 10min | ~$0.05 | End-to-end with internal ALB |
-| **Autoscaler Test** | 15min | ~$0.10-0.30 | Controlled scaling validation |
-| **Full Test Suite** | 20min | ~$0.15-0.25 | Comprehensive validation |
-
-### Key Testing Features
-
-- **Zero-cost basic validation** - No additional AWS resource creation
-- **Cost-optimized integration tests** - Minimal resource usage with automatic cleanup
-- **Professional test reports** - Detailed output with cost summaries
-- **Automatic cleanup** - All test resources removed after completion
-- **Comprehensive coverage** - Multi-AZ, autoscaling, load balancing, SSL/DNS
-
-### Quick Test Commands
-
-```bash
-cd testing
-
-# Zero-cost cluster health check
-./scripts/smoke-test.sh
-
-# Test autoscaler functionality  
-./scripts/autoscaler-stress-test.sh
-
-# Full infrastructure validation
-./scripts/test-suite.sh dev
-```
-
-### Development Workflow Validation
-
-The project includes automated validation for development workflows:
-
-- **Pre-commit hooks**: Validate Terraform code, format, and generate docs on every commit
-- **terraform-docs**: Ensure documentation is always up-to-date with code changes
-- **AI-powered validation**: GitHub Copilot integration for code quality insights
-- **State consistency**: Scripts to validate Terragrunt state across environments
-
-For complete testing documentation, see module-specific README files with terraform-docs generated sections.
-
 ## 📚 Documentation & Development Workflow
 
 This project features automated documentation generation and developer-friendly workflows:
@@ -450,6 +446,7 @@ This project features automated documentation generation and developer-friendly 
 - **Pre-commit Hooks**: Documentation updates automatically on every commit
 - **AI-Powered Insights**: GitHub Copilot integration for intelligent code explanations
 - **Live Documentation**: Documentation always stays in sync with code changes
+- **State Consistency**: Scripts to validate Terragrunt state across environments
 
 ### Documentation Structure
 
@@ -498,13 +495,90 @@ Example of viewing module documentation:
 # View EKS module documentation
 cat infrastructure-modules/eks/README.md
 
-# View VPC module documentation  
+# View VPC module documentation
 cat infrastructure-modules/vpc/README.md
 
 # All modules include terraform-docs generated sections
 ```
 
-## 🔄 Updating Infrastructure
+## � Next Steps: Configuration & Production Readiness
+
+Your EKS infrastructure is deployed with all core components, but several services need configuration to be fully operational:
+
+### 1. Configure Monitoring Stack (Highest Priority)
+
+The Prometheus and Grafana monitoring stack is installed but needs configuration:
+
+```bash
+# Access Grafana (get admin password from AWS Secrets Manager)
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+
+# Configure Grafana data sources and dashboards
+# - Add Prometheus data source (http://kube-prometheus-stack-prometheus:9090)
+# - Import Kubernetes cluster dashboards
+# - Set up custom application dashboards
+```
+
+### 2. Set Up AlertManager Notifications
+
+Configure AlertManager to send notifications:
+
+```bash
+# Edit AlertManager configuration
+kubectl edit secret -n monitoring alertmanager-kube-prometheus-stack-alertmanager
+
+# Add Slack/email webhook configurations
+# Configure routing rules for different alert severities
+```
+
+### 3. Deploy CI/CD Pipeline (ArgoCD/Tekton)
+
+The CI/CD infrastructure is ready but not deployed:
+
+```bash
+# Deploy ArgoCD
+cd infrastructure/cicd/argocd
+terragrunt apply
+
+# Deploy Tekton (optional)
+cd infrastructure/cicd/tekton
+terragrunt apply
+```
+
+### 4. Configure Secrets Management
+
+Enable the example SecretProviderClass to start using AWS Secrets Manager:
+
+```bash
+# Enable example secret provider class
+cd infrastructure/dev/kubernetes-addons
+# Set create_example_secret_provider_class = true in terragrunt.hcl
+terragrunt apply
+```
+
+### 5. Deploy Production Applications
+
+Use the provided secure application template:
+
+```bash
+# Deploy secure production app example
+kubectl apply -f examples/secure-production-app.yaml
+
+# Deploy External DNS example
+kubectl apply -f examples/external-dns-example.yaml
+```
+
+### 6. Additional Configuration
+
+- **CloudWatch Logs**: Configure log groups and retention policies
+- **Network Policies**: Customize network segmentation rules
+- **Resource Quotas**: Adjust namespace resource limits
+- **Backup Strategy**: Implement EBS volume backup policies
+- **Disaster Recovery**: Set up cross-region backup and restore procedures
+
+For detailed next steps, see [NextSteps.md](NextSteps.md) which contains a comprehensive production readiness roadmap.
+
+## �🔄 Updating Infrastructure
 
 To update infrastructure:
 
@@ -615,10 +689,3 @@ terraform-docs --version
 # Run pre-commit on all files
 pre-commit run --all-files
 ```
-
-### Getting Help
-
-- **Module Documentation**: Each module in `infrastructure-modules/` has comprehensive README with terraform-docs generated sections
-- **Configuration Examples**: Check environment-specific configs in `infrastructure/dev/` and `infrastructure/staging/`
-- **Scripts**: Use automation scripts in `scripts/` directory for common tasks
-- **Testing**: Run the testing suite to validate your infrastructure setup
